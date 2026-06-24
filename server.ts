@@ -24,10 +24,33 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3001;
 
   // Middleware to parse JSON
   app.use(express.json());
+
+  // Security Headers Middleware (webapp-security)
+  app.use((req, res, next) => {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "img-src 'self' data: https://images.unsplash.com https://*.googleapis.com https://*.gstatic.com; " +
+      "connect-src 'self' https://api.asaas.com https://sandbox.asaas.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; " +
+      "font-src 'self' https://fonts.gstatic.com; " +
+      "frame-src 'self' https://*.firebaseapp.com https://*.web.app; " +
+      "object-src 'none';"
+    );
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    if (process.env.NODE_ENV === "production" || req.headers["x-forwarded-proto"] === "https") {
+      res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    }
+    next();
+  });
 
   // Pre-flight checks on server boot
   const missingEnvKeys = [];

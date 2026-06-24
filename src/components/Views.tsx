@@ -43,6 +43,7 @@ import {
 } from "firebase/firestore";
 import { useLanguage } from "../i18n/Context";
 import { Language } from "../i18n/translations";
+import { sanitizeHtml } from "../lib/security";
 
 export function DevocionalView({ onGoHome }: { onGoHome?: () => void }) {
   const { t, language } = useLanguage();
@@ -910,13 +911,15 @@ export function LeituraView({ onGoHome }: { onGoHome?: () => void }) {
           <div
             className="text-[14px] leading-relaxed mb-6 text-zinc-200 markdown-style"
             dangerouslySetInnerHTML={{
-              __html: reflection
-                .replace(/\n{2,}/g, "<br/><br/>")
-                .replace(/\n/g, "<br/>")
-                .replace(
-                  /\*\*(.*?)\*\*/g,
-                  '<strong class="text-primary-orange">$1</strong>',
-                ),
+              __html: sanitizeHtml(
+                reflection
+                  .replace(/\n{2,}/g, "<br/><br/>")
+                  .replace(/\n/g, "<br/>")
+                  .replace(
+                    /\*\*(.*?)\*\*/g,
+                    '<strong class="text-primary-orange">$1</strong>',
+                  )
+              ),
             }}
           />
 
@@ -1141,9 +1144,11 @@ export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
                 <div
                   className="text-[14px] leading-relaxed markdown-style"
                   dangerouslySetInnerHTML={{
-                    __html: msg.text
-                      .replace(/\n/g, "<br/>")
-                      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"),
+                    __html: sanitizeHtml(
+                      msg.text
+                        .replace(/\n/g, "<br/>")
+                        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                    ),
                   }}
                 />
               </div>

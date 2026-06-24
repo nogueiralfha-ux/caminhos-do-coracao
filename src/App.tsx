@@ -7,6 +7,8 @@ import {
   ChevronLeft,
   ShoppingBag,
   User,
+  WifiOff,
+  Download,
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import {
@@ -29,6 +31,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("home");
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   const navItems = [
     { id: "home", label: t("navHome"), icon: Home },
@@ -43,8 +47,33 @@ export default function App() {
       setUser(u);
       setAuthLoading(false);
     });
-    return () => unsubscribe();
+
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+    };
   }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User PWA installation outcome: ${outcome}`);
+    setDeferredPrompt(null);
+  };
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString("pt-BR", {
@@ -169,6 +198,27 @@ export default function App() {
               ))}
             </div>
 
+            {/* Install App Prompt */}
+            {deferredPrompt && (
+              <div className="mx-4 mb-6 p-4 rounded-[20px] bg-gradient-to-r from-primary-orange/20 to-primary-gold/10 border border-primary-orange/30 flex items-center justify-between gap-4 animate-in fade-in duration-300">
+                <div>
+                  <h3 className="font-serif font-bold text-sm text-white flex items-center gap-1.5">
+                    <Download size={16} className="text-primary-orange animate-bounce" />
+                    Caminhos do Coração App
+                  </h3>
+                  <p className="text-[10px] text-zinc-300 mt-1">
+                    Instale em sua tela de início para acesso rápido e offline!
+                  </p>
+                </div>
+                <button
+                  onClick={handleInstallClick}
+                  className="bg-primary-orange hover:bg-primary-orange-hover text-white text-[11px] font-bold py-2 px-4 rounded-full transition-all active:scale-95 whitespace-nowrap cursor-pointer shrink-0"
+                >
+                  Instalar
+                </button>
+              </div>
+            )}
+
             {/* Footer Quote */}
             <div className="text-center px-4 mb-6">
               <p className="text-zinc-400 italic text-xs leading-relaxed font-medium">
@@ -201,6 +251,12 @@ export default function App() {
         <div className="device-simulator">
           <div className="device-notch" />
           <div className="flex-1 flex flex-col relative text-white overflow-hidden h-full">
+            {isOffline && (
+              <div className="bg-red-950/90 text-red-200 border-b border-red-800/30 py-1.5 px-4 text-center text-[10px] font-semibold flex items-center justify-center gap-1.5 z-[100] backdrop-blur-md animate-in slide-in-from-top duration-300">
+                <WifiOff size={12} className="text-red-400" />
+                <span>Sem conexão com a internet — Modo Offline ativo</span>
+              </div>
+            )}
             {content}
           </div>
         </div>
