@@ -59,8 +59,8 @@ export default function App() {
       title: t("cardDevocionalTitle"),
       subtitle: t("cardDevocionalSub"),
       buttonText: t("cardDevocionalBtn"),
-      buttonColor: "bg-[#FF5A00] text-white hover:bg-[#E04D00]",
-      glow: "from-white via-white/50 to-transparent",
+      buttonColor: "bg-primary-orange text-white hover:bg-primary-orange-hover",
+      glow: "from-primary-orange via-primary-orange/40 to-transparent",
       icon: Book,
     },
     {
@@ -69,7 +69,7 @@ export default function App() {
       subtitle: `${t("cardLeituraSub")} ${formattedDate}`,
       buttonText: t("cardLeituraBtn"),
       buttonColor: "bg-white text-black hover:bg-gray-100",
-      glow: "from-[#FF5A00] via-[#FF5A00]/50 to-transparent",
+      glow: "from-white via-white/40 to-transparent",
       icon: BookOpen,
     },
     {
@@ -77,8 +77,8 @@ export default function App() {
       title: t("cardDesafioTitle"),
       subtitle: t("cardDesafioSub"),
       buttonText: t("cardDesafioBtn"),
-      buttonColor: "bg-[#00D1A0] text-black hover:bg-[#00B388]",
-      glow: "from-[#00D1A0] via-[#00D1A0]/50 to-transparent",
+      buttonColor: "bg-primary-mint text-black hover:bg-primary-mint-hover",
+      glow: "from-primary-mint via-primary-mint/40 to-transparent",
       icon: CheckCircle,
     },
     {
@@ -86,8 +86,8 @@ export default function App() {
       title: t("cardShemaTitle"),
       subtitle: t("cardShemaSub"),
       buttonText: t("cardShemaBtn"),
-      buttonColor: "bg-[#FFD600] text-black hover:bg-[#E6C000]",
-      glow: "from-[#FFD600] via-[#FFD600]/50 to-transparent",
+      buttonColor: "bg-primary-gold text-black hover:bg-primary-gold-hover",
+      glow: "from-primary-gold via-primary-gold/40 to-transparent",
       icon: MessageSquare,
     },
   ];
@@ -107,20 +107,22 @@ export default function App() {
           <ApoioView
             onGoHome={() => setActiveTab("home")}
             onGoToStore={() => setActiveTab("loja")}
+            hideBackButton={true}
           />
         );
       case "loja":
-        return <LojaView onGoHome={() => setActiveTab("home")} />;
+        return <LojaView onGoHome={() => setActiveTab("home")} hideBackButton={true} />;
       case "perfil":
         return (
           <ProfileView
             onGoHome={() => setActiveTab("home")}
             onGoAdmin={() => setActiveTab("admin")}
             onGoToStore={() => setActiveTab("loja")}
+            hideBackButton={true}
           />
         );
       case "admin":
-        return <AdminView onGoHome={() => setActiveTab("home")} />;
+        return <AdminView onGoHome={() => setActiveTab("home")} hideBackButton={true} />;
       case "home":
       default:
         return (
@@ -130,7 +132,7 @@ export default function App() {
               {cards.map((card) => (
                 <div
                   key={card.id}
-                  className="relative bg-[#1E1E1E] rounded-[24px] p-5 flex flex-col items-center text-center overflow-hidden cursor-pointer hover:bg-[#252525] transition-colors"
+                  className="relative bg-neutral-card rounded-[24px] p-5 flex flex-col items-center text-center overflow-hidden cursor-pointer hover:bg-neutral-card-hover transition-all duration-300"
                   onClick={() => setActiveTab(card.id)}
                 >
                   {/* Top Glow Border Effect */}
@@ -148,14 +150,14 @@ export default function App() {
                     className="w-8 h-8 mb-3 text-white"
                     strokeWidth={1.5}
                   />
-                  <h2 className="font-serif font-bold text-xl mb-1">
+                  <h2 className="font-serif font-bold text-xl mb-1 text-white">
                     {card.title}
                   </h2>
-                  <p className="text-[#888888] text-xs mb-6 h-4">
+                  <p className="text-zinc-400 text-xs mb-6 h-4 font-medium">
                     {card.subtitle}
                   </p>
                   <button
-                    className={`w-full py-2.5 rounded-full font-sans font-semibold text-sm transition-colors mt-auto ${card.buttonColor}`}
+                    className={`w-full py-2.5 rounded-full font-sans font-semibold text-sm transition-colors mt-auto cursor-pointer focus-ring ${card.buttonColor}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       setActiveTab(card.id);
@@ -169,20 +171,20 @@ export default function App() {
 
             {/* Footer Quote */}
             <div className="text-center px-4 mb-6">
-              <p className="text-[#666666] italic text-xs leading-relaxed">
+              <p className="text-zinc-400 italic text-xs leading-relaxed font-medium">
                 {t("footerQuote")}
               </p>
             </div>
 
             {/* Action Button */}
             <div className="flex flex-col items-center justify-center mb-6 px-4">
-              <p className="text-[#888888] text-[11px] text-center mb-4 leading-relaxed px-4">
+              <p className="text-zinc-400 text-[11px] text-center mb-4 leading-relaxed px-4 font-medium">
                 {t("supportText1")} <strong>{t("supportText2")}</strong>{" "}
                 {t("supportText3")} <strong>{t("supportText4")}</strong>{" "}
                 {t("supportText5")}
               </p>
               <button
-                className="w-full max-w-[250px] py-3.5 rounded-full border border-[#333] text-white text-[11px] font-bold tracking-widest bg-[#1A1A1A] hover:bg-[#222] hover:border-[#FF5A00]/50 transition-all flex items-center justify-center focus:outline-none uppercase"
+                className="w-full max-w-[250px] py-3.5 rounded-full border border-white/10 text-white text-[11px] font-bold tracking-widest bg-neutral-card hover:bg-neutral-card-hover hover:border-primary-orange/50 transition-all flex items-center justify-center focus-ring cursor-pointer uppercase"
                 onClick={() => setActiveTab("apoio")}
               >
                 {t("supportBtn")}
@@ -193,9 +195,22 @@ export default function App() {
     }
   };
 
-  if (authLoading) {
+  const renderAppContainer = (content: React.ReactNode, isFullScreenView = false) => {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-white font-sans animate-pulse">
+      <div className="simulator-wrapper">
+        <div className="device-simulator">
+          <div className="device-notch" />
+          <div className="flex-1 flex flex-col relative text-white overflow-hidden h-full">
+            {content}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (authLoading) {
+    return renderAppContainer(
+      <div className="flex-1 bg-neutral-dark flex items-center justify-center text-white font-sans animate-pulse">
         {t("loading")}
       </div>
     );
@@ -203,79 +218,78 @@ export default function App() {
 
   if (!user) {
     if (activeTab === "loja") {
-      return (
-        <div className="flex justify-center min-h-screen bg-black">
-          <div className="w-full max-w-md bg-[#161616] min-h-screen flex flex-col relative text-white shadow-2xl overflow-y-auto px-6 py-12">
-            <LojaView onGoHome={() => setActiveTab("home")} />
-          </div>
-        </div>
+      return renderAppContainer(
+        <div className="flex-1 overflow-y-auto px-6 py-12 custom-scrollbar">
+          <LojaView onGoHome={() => setActiveTab("home")} />
+        </div>,
+        true
       );
     }
 
-    return (
-      <div className="flex justify-center min-h-screen bg-black">
-        <div className="w-full max-w-md bg-[#161616] min-h-screen flex flex-col relative text-white shadow-2xl overflow-y-auto">
-          <LandingView onGoToStore={() => setActiveTab("loja")} />
-        </div>
-      </div>
+    return renderAppContainer(
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <LandingView onGoToStore={() => setActiveTab("loja")} />
+      </div>,
+      true
     );
   }
 
-  return (
-    <div className="flex justify-center min-h-screen bg-black">
-      {/* Mobile Constraint Container */}
-      <div className="w-full max-w-md bg-[#161616] min-h-screen flex flex-col relative text-white shadow-2xl overflow-hidden">
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto pb-24 pt-12 px-6">
-          {/* Header */}
-          <div className="text-center mb-10 relative">
-            {activeTab !== "home" && (
-              <button
-                onClick={() => setActiveTab("home")}
-                className="absolute left-0 top-1/2 -translate-y-1/2 p-2 -ml-2 text-gray-400 hover:text-white transition-colors"
-                aria-label="Voltar para o início"
-              >
-                <ChevronLeft size={28} />
-              </button>
-            )}
-            <h1
-              className="font-serif font-bold text-3xl mb-2 tracking-tight cursor-pointer"
-              onClick={() => setActiveTab("home")}
+  const isChat = activeTab === "shema";
+
+  return renderAppContainer(
+    <div className="flex flex-col h-full overflow-hidden bg-neutral-dark">
+      {/* Fixed Top Header (outside scroll area) */}
+      <header className="text-center pt-8 pb-3 px-6 relative shrink-0 border-b border-white/5 bg-neutral-dark z-40">
+        {activeTab !== "home" && (
+          <button
+            onClick={() => setActiveTab("home")}
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 text-zinc-400 hover:text-white transition-colors cursor-pointer focus-ring rounded-lg flex items-center justify-center"
+            aria-label="Voltar para o início"
+          >
+            <ChevronLeft size={24} />
+          </button>
+        )}
+        <h1
+          className="font-serif font-bold text-2xl tracking-tight cursor-pointer hover:opacity-80 active:scale-[0.98] transition-all"
+          onClick={() => setActiveTab("home")}
+        >
+          {t("mainTitle")}
+        </h1>
+        <p className="font-sans italic text-zinc-400 text-[10px] font-semibold tracking-wider uppercase opacity-75 mt-0.5">
+          {t("mainSubtitle")}
+        </p>
+      </header>
+
+      {/* Main Content Area: scrolls for normal views, fits full height for chat to support fixed input */}
+      <main className={`flex-1 flex flex-col overflow-hidden relative ${!isChat ? "overflow-y-auto px-6 py-6 custom-scrollbar" : "px-6 pt-4"}`}>
+        {renderView()}
+      </main>
+
+      {/* Docked Solid Bottom Navigation Bar (fixes all contrast/clipping leaks) */}
+      <nav className="h-20 bg-zinc-950 border-t border-white/10 px-4 flex justify-between items-center shrink-0 z-50">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex flex-col items-center justify-center flex-1 w-full transition-all py-1.5 rounded-xl cursor-pointer focus-ring active:scale-[0.9] ${
+                isActive 
+                  ? "text-primary-orange bg-primary-orange/10 font-bold" 
+                  : "text-zinc-400 hover:text-white"
+              }`}
             >
-              {t("mainTitle")}
-            </h1>
-            <p className="font-sans italic text-gray-400 text-sm font-medium">
-              {t("mainSubtitle")}
-            </p>
-          </div>
-
-          {renderView()}
-        </div>
-
-        {/* Bottom Navigation */}
-        <div className="absolute bottom-0 w-full bg-[#1A1D2B]/95 backdrop-blur-md border-t border-white/5 py-3 px-2 flex justify-between items-center rounded-t-[20px] z-50">
-          {navItems.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center justify-center w-[20%] transition-colors focus:outline-none ${
-                  isActive ? "text-white" : "text-[#626880] hover:text-white/70"
-                }`}
-              >
-                <item.icon
-                  className="w-6 h-6 mb-1"
-                  strokeWidth={isActive ? 2 : 1.5}
-                />
-                <span className="text-[9px] tracking-wider uppercase font-medium">
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+              <item.icon
+                className="w-5 h-5 mb-1"
+                strokeWidth={isActive ? 2.5 : 1.8}
+              />
+              <span className="text-[8px] tracking-wider uppercase font-semibold">
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

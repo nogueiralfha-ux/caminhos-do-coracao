@@ -3,7 +3,13 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, order
 import { db } from '../lib/firebase';
 import { ChevronLeft, Plus, Edit2, Trash2, Save, X, Settings, RefreshCw } from 'lucide-react';
 
-export function AdminView({ onGoHome }: { onGoHome?: () => void }) {
+export function AdminView({
+  onGoHome,
+  hideBackButton = false,
+}: {
+  onGoHome?: () => void;
+  hideBackButton?: boolean;
+}) {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -120,9 +126,11 @@ export function AdminView({ onGoHome }: { onGoHome?: () => void }) {
   return (
     <div className="flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-500 pb-10">
       <div className="mb-6">
-        <button onClick={onGoHome} className="text-[#FF5A00] flex items-center gap-1 mb-4 text-[13px] font-bold uppercase tracking-wider hover:text-white transition-colors">
-          <ChevronLeft size={16} /> Voltar
-        </button>
+        {!hideBackButton && onGoHome && (
+          <button onClick={onGoHome} className="text-[#FF5A00] flex items-center gap-1 mb-4 text-[13px] font-bold uppercase tracking-wider hover:text-white transition-colors cursor-pointer">
+            <ChevronLeft size={16} /> Voltar
+          </button>
+        )}
         <h2 className="text-white font-serif text-2xl font-bold mb-1 flex items-center gap-3">
           <Settings className="text-[#FF5A00]" /> Painel Admin
         </h2>

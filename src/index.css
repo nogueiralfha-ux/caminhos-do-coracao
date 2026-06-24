@@ -4,15 +4,47 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  
+  /* Cores baseadas em HSL para garantir refinamento estético e transição suave */
+  --color-primary-orange: #ff5a00;
+  --color-primary-orange-hover: #e04d00;
+  --color-primary-mint: #00d1a0;
+  --color-primary-mint-hover: #00b388;
+  --color-primary-gold: #ffd600;
+  --color-primary-gold-hover: #e6c000;
+  
+  --color-neutral-darker: #09090b;
+  --color-neutral-dark: #121214;
+  --color-neutral-card: #1c1c1e;
+  --color-neutral-card-hover: #242426;
+
+  /* Transição de easing premium Ease-Out Expo */
+  --transition-premium: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 body {
-  background-color: #09090b;
+  background-color: var(--color-neutral-darker);
   color: #ffffff;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  overflow-x: hidden;
+}
+
+/* Custom interactive element behaviors */
+.interactive-element {
+  transition: var(--transition-premium);
+}
+
+.interactive-element:hover {
+  transform: translateY(-2px);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-primary-orange);
+  outline-offset: 2px;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -20,10 +52,102 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: rgba(255, 255, 255, 0.2);
 }
+
+/* Custom markdown formatting */
+.markdown-style p {
+  margin-bottom: 1rem;
+}
+
+.markdown-style strong {
+  font-weight: 600;
+}
+
+/* Bento Card Style */
+.bento-card {
+  transition: var(--transition-premium);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.bento-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  background-color: var(--color-neutral-card-hover);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Device Simulator Core Styles */
+@media (min-width: 640px) {
+  .simulator-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 2rem;
+    background: radial-gradient(circle at center, #1b120f 0%, #09090b 100%);
+  }
+
+  .device-simulator {
+    position: relative;
+    width: 390px;
+    height: 844px;
+    border: 11px solid #27272a;
+    border-radius: 54px;
+    background: var(--color-neutral-dark);
+    box-shadow: 
+      0 25px 50px -12px rgba(0, 0, 0, 0.8),
+      0 0 80px rgba(255, 90, 0, 0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .device-notch {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 110px;
+    height: 30px;
+    background: #27272a;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .device-notch::before {
+    content: "";
+    width: 40px;
+    height: 4px;
+    background: #09090b;
+    border-radius: 99px;
+  }
+}
+
+@media (max-width: 639px) {
+  .simulator-wrapper {
+    background: var(--color-neutral-dark);
+  }
+  
+  .device-simulator {
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .device-notch {
+    display: none;
+  }
+}
+
+

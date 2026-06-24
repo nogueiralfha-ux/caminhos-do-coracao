@@ -29,6 +29,17 @@ async function startServer() {
   // Middleware to parse JSON
   app.use(express.json());
 
+  // Pre-flight checks on server boot
+  const missingEnvKeys = [];
+  if (!process.env.GEMINI_API_KEY) missingEnvKeys.push("GEMINI_API_KEY");
+  if (!process.env.ASAAS_API_KEY) missingEnvKeys.push("ASAAS_API_KEY");
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) missingEnvKeys.push("FIREBASE_SERVICE_ACCOUNT_KEY");
+
+  if (missingEnvKeys.length > 0) {
+    console.warn(`\n[WARNING] Configuração de ambiente incompleta! Chaves ausentes: ${missingEnvKeys.join(", ")}`);
+    console.warn("[WARNING] Certifique-se de configurar essas chaves para que todas as integrações funcionem corretamente.\n");
+  }
+
   // Initialize Gemini API
   const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
@@ -38,6 +49,44 @@ async function startServer() {
       }
     }
   });
+
+  // Base URL do Asaas dependendo do modo sandbox (Poka-Yoke: sem fallback automático que burla o ambiente configurado)
+  const isSandbox = process.env.ASAAS_SANDBOX === "true";
+  const asaasBaseUrl = isSandbox 
+    ? "https://sandbox.asaas.com/api/v3" 
+    : "https://api.asaas.com/v3";
+  console.log(`[INFO] Asaas integrado no ambiente: ${isSandbox ? "SANDBOX" : "PRODUÇÃO"} (${asaasBaseUrl})`);
+
+  // Shared Helper para chamadas na API do Asaas (Reduz duplicação de código)
+  const fetchAsaas = async (endpoint: string, options: any) => {
+    const apiKey = process.env.ASAAS_API_KEY;
+    if (!apiKey) {
+      throw new Error("Chave de API do Asaas (ASAAS_API_KEY) não configurada no painel.");
+    }
+
+    const response = await fetch(`${asaasBaseUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Content-Type': 'application/json',
+        'access_token': apiKey,
+      },
+    });
+
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Asaas respondeu com formato inválido (${response.status}): ${text.substring(0, 100)}`);
+    }
+
+    if (data && data.errors && data.errors.length > 0) {
+      throw new Error(data.errors[0].description || "Erro de API do Asaas.");
+    }
+
+    return data;
+  };
 
   const systemInstruction = `Você é um Conselheiro Espiritual amoroso, compassivo e teológico. 
 Sua finalidade é ouvir os desabafos e pedidos dos usuários.
@@ -56,26 +105,12 @@ Contexto do aplicativo que você pode usar: ${JSON.stringify(localDatabase)}.`;
     try {
       const { message, history } = req.body;
 
-      const chat = ai.chats.create({
-        model: "gemini-3.5-flash",
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        },
-      });
-
-      // Se houver histórico, poderíamos reinjetar, mas para simplificar
-      // vamos apenas mandar a mensagem nova se não estivermos usando estado.
-      // O ideal é passar o history se houver
-      
       let contents = [];
       if (history && Array.isArray(history)) {
           contents = [...history];
       }
       contents.push({ role: 'user', parts: [{ text: message }] });
 
-      // @google/genai 2.4.0 não suporta history diretamente em sendMessage no modo fácil sem state, 
-      // mas podemos usar generateContent
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
         contents: contents,
@@ -86,9 +121,9 @@ Contexto do aplicativo que você pode usar: ${JSON.stringify(localDatabase)}.`;
       });
 
       res.json({ reply: response.text });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error communicating with Gemini:", error);
-      res.status(500).json({ error: "Erro ao se comunicar com o conselheiro." });
+      res.status(500).json({ error: error.message || "Erro ao se comunicar com o conselheiro." });
     }
   });
 
@@ -114,63 +149,22 @@ Tudo de forma inspiradora e amorosa, formatado para celular.`;
       });
 
       res.json({ reflection: response.text });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error communicating with Gemini (Leitura):", error);
-      res.status(500).json({ error: "Erro ao gerar meditação." });
+      res.status(500).json({ error: error.message || "Erro ao gerar meditação." });
     }
   });
 
-  // API Route for Asaas Checkout
+  // API Route for Asaas Checkout (Donações / Compromisso)
   app.post("/api/asaas/checkout", async (req, res) => {
     try {
       const { type, amount, name, email, cpf } = req.body;
-      const apiKey = process.env.ASAAS_API_KEY;
-      if (!apiKey) {
-        return res.status(400).json({ error: "ASAAS_API_KEY não configurada no painel (Secrets) do projeto." });
-      }
-
-      let isSandbox = process.env.ASAAS_SANDBOX === "true";
-      let asaasUrls = isSandbox 
-        ? ["https://sandbox.asaas.com/api/v3", "https://api.asaas.com/v3"] 
-        : ["https://api.asaas.com/v3", "https://sandbox.asaas.com/api/v3"];
-
-      // Nova função de suporte com sistema inteligente de fallback e tratamento de erros
-      const fetchAsaas = async (endpoint: string, options: any) => {
-        let res = await fetch(`${asaasUrls[0]}${endpoint}`, options);
-        let text = await res.text();
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch (e) {
-          throw new Error(`Asaas devolveu um formato inválido (${res.status}): ${text.substring(0, 50)}...`);
-        }
-        
-        if (data && data.errors && data.errors.length > 0) {
-           const desc = data.errors[0].description || "";
-           if (desc.toLowerCase().includes("ambiente") || desc.toLowerCase().includes("not belong") || desc.toLowerCase().includes("invalid token") || desc.toLowerCase().includes("chave")) {
-              console.log(`Alternando ambiente Asaas URL para: ${asaasUrls[1]}`);
-              res = await fetch(`${asaasUrls[1]}${endpoint}`, options);
-              text = await res.text();
-              try {
-                data = JSON.parse(text);
-              } catch (e) {
-                throw new Error(`Asaas devolveu um formato inválido no fallback (${res.status}): ${text.substring(0, 50)}...`);
-              }
-           }
-        }
-        return data;
-      };
 
       // 1. Criar ou recuperar cliente no Asaas
       const customerData = await fetchAsaas('/customers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'access_token': apiKey },
         body: JSON.stringify({ name, email, cpfCnpj: cpf })
       });
-      
-      if (customerData.errors) {
-        return res.status(400).json({ error: customerData.errors[0].description });
-      }
       const customerId = customerData.id;
 
       let invoiceUrl = "";
@@ -181,7 +175,6 @@ Tudo de forma inspiradora e amorosa, formatado para celular.`;
 
         const paymentData = await fetchAsaas('/payments', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'access_token': apiKey },
           body: JSON.stringify({
             customer: customerId,
             billingType: 'UNDEFINED',
@@ -190,10 +183,6 @@ Tudo de forma inspiradora e amorosa, formatado para celular.`;
             description: "Oferta Única - Apoio Missionário Missio Dei"
           })
         });
-        
-        if (paymentData.errors) {
-           return res.status(400).json({ error: paymentData.errors[0].description });
-        }
         invoiceUrl = paymentData.invoiceUrl;
       } else if (type === 'mensal') {
         const dueDate = new Date();
@@ -201,10 +190,9 @@ Tudo de forma inspiradora e amorosa, formatado para celular.`;
 
         const subData = await fetchAsaas('/subscriptions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'access_token': apiKey },
           body: JSON.stringify({
             customer: customerId,
-            billingType: 'UNDEFINED', // Permite escolher o método (cartão, pix, boleto)
+            billingType: 'UNDEFINED',
             value: amount,
             nextDueDate: dueDate.toISOString().split('T')[0],
             cycle: 'MONTHLY',
@@ -212,14 +200,9 @@ Tudo de forma inspiradora e amorosa, formatado para celular.`;
           })
         });
         
-        if (subData.errors) {
-           return res.status(400).json({ error: subData.errors[0].description });
-        }
-        
-        // Para assinaturas o Asaas não retorna a URL diretamente naquele nível, precisamos pegar a primeira cobrança (payment) atrelada
+        // Obter a primeira cobrança da assinatura criada
         const paymentsData = await fetchAsaas(`/subscriptions/${subData.id}/payments`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json', 'access_token': apiKey }
+          method: 'GET'
         });
         
         if (paymentsData.data && paymentsData.data.length > 0) {
@@ -236,83 +219,40 @@ Tudo de forma inspiradora e amorosa, formatado para celular.`;
     }
   });
 
-      // API Route for Product Checkout (E-books, etc.)
-      app.post("/api/asaas/checkout-product", async (req, res) => {
-        try {
-          const { productId, amount, name, email, cpf, userId } = req.body;
-          const apiKey = process.env.ASAAS_API_KEY;
-          if (!apiKey) {
-            return res.status(400).json({ error: "ASAAS_API_KEY não configurada." });
-          }
-    
-          let isSandbox = process.env.ASAAS_SANDBOX === "true";
-          let asaasUrls = isSandbox 
-            ? ["https://sandbox.asaas.com/api/v3", "https://api.asaas.com/v3"] 
-            : ["https://api.asaas.com/v3", "https://sandbox.asaas.com/api/v3"];
-    
-          const fetchAsaas = async (endpoint: string, options: any) => {
-            let res = await fetch(`${asaasUrls[0]}${endpoint}`, options);
-            let text = await res.text();
-            let data;
-            try {
-              data = JSON.parse(text);
-            } catch (e) {
-              throw new Error(`Asaas devolveu um formato inválido (${res.status})`);
-            }
-            if (data && data.errors && data.errors.length > 0) {
-               const desc = data.errors[0].description || "";
-               if (desc.toLowerCase().includes("ambiente") || desc.toLowerCase().includes("not belong") || desc.toLowerCase().includes("invalid token")) {
-                  res = await fetch(`${asaasUrls[1]}${endpoint}`, options);
-                  text = await res.text();
-                  try {
-                    data = JSON.parse(text);
-                  } catch (e) {
-                    throw new Error(`Asaas devolveu um formato inválido no fallback (${res.status})`);
-                  }
-               }
-            }
-            return data;
-          };
-    
-          // 1. Criar ou recuperar cliente
-          const customerData = await fetchAsaas('/customers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'access_token': apiKey },
-            body: JSON.stringify({ name, email, cpfCnpj: cpf })
-          });
-          
-          if (customerData.errors) {
-            return res.status(400).json({ error: customerData.errors[0].description });
-          }
-          const customerId = customerData.id;
-    
-          // 2. Criar a cobrança atrelando o userId e productId no externalReference
-          const dueDate = new Date();
-          dueDate.setDate(dueDate.getDate() + 1); // Amanhã
-    
-          const paymentData = await fetchAsaas('/payments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'access_token': apiKey },
-            body: JSON.stringify({
-              customer: customerId,
-              billingType: 'UNDEFINED',
-              value: amount,
-              dueDate: dueDate.toISOString().split('T')[0],
-              description: `Compra do Produto ID: ${productId}`,
-              externalReference: JSON.stringify({ userId, productId }) // Guardamos quem comprou o quê
-            })
-          });
-          
-          if (paymentData.errors) {
-             return res.status(400).json({ error: paymentData.errors[0].description });
-          }
-          
-          res.json({ invoiceUrl: paymentData.invoiceUrl });
-        } catch (error: any) {
-          console.error("Erro no checkout do produto:", error);
-          res.status(500).json({ error: error.message || "Erro interno." });
-        }
+  // API Route for Product Checkout (E-books, etc.)
+  app.post("/api/asaas/checkout-product", async (req, res) => {
+    try {
+      const { productId, amount, name, email, cpf, userId } = req.body;
+
+      // 1. Criar ou recuperar cliente
+      const customerData = await fetchAsaas('/customers', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, cpfCnpj: cpf })
       });
+      const customerId = customerData.id;
+
+      // 2. Criar a cobrança atrelando o userId e productId no externalReference
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 1); // Amanhã
+
+      const paymentData = await fetchAsaas('/payments', {
+        method: 'POST',
+        body: JSON.stringify({
+          customer: customerId,
+          billingType: 'UNDEFINED',
+          value: amount,
+          dueDate: dueDate.toISOString().split('T')[0],
+          description: `Compra do Produto ID: ${productId}`,
+          externalReference: JSON.stringify({ userId, productId })
+        })
+      });
+      
+      res.json({ invoiceUrl: paymentData.invoiceUrl });
+    } catch (error: any) {
+      console.error("Erro no checkout do produto:", error);
+      res.status(500).json({ error: error.message || "Erro interno no servidor ao processar pagamento do produto." });
+    }
+  });
 
       // API Route for Asaas Webhook
       app.post("/api/webhook/asaas", async (req, res) => {

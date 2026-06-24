@@ -20,6 +20,7 @@ import {
   LogOut,
   Settings,
   Globe,
+  Share2,
 } from "lucide-react";
 import { databases } from "../data";
 import { auth, db } from "../lib/firebase";
@@ -61,82 +62,106 @@ export function DevocionalView({ onGoHome }: { onGoHome?: () => void }) {
   const index = (dayOfYear - 1) % db.devocionais.length;
   const item = db.devocionais[index >= 0 ? index : 0];
 
+  const handleShare = async () => {
+    const shareText = `*${item.title}*\n_${item.subtitle}_\n\n*Referência:* ${item.reference}\n\n*Introdução:* ${item.intro}\n\n*Ensino:* ${item.ensino}\n\n*Ação:* ${item.acao}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: item.title,
+          text: shareText,
+          url: window.location.origin,
+        });
+      } else {
+        await navigator.clipboard.writeText(`${item.title} (${item.reference})\n\n"${item.intro}"\n\nLeia mais no app: ${window.location.origin}`);
+        alert(t('copied'));
+      }
+    } catch (err) {
+      console.error("Error sharing devotional:", err);
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="mb-2">
-        <h2 className="text-[#FF5A00] font-serif text-2xl font-bold mb-1 flex items-center gap-3">
-          <Book className="text-[#FF5A00]/70" /> Devocional
+        <h2 className="text-primary-orange font-serif text-2xl font-bold mb-1 flex items-center gap-3">
+          <Book className="text-primary-orange/70" /> Devocional
         </h2>
-        <p className="text-gray-400 text-sm">
+        <p className="text-zinc-400 text-sm font-semibold tracking-wide">
           {t('devotionalDesc')} {formattedDate}.
         </p>
       </div>
 
-      <div className="bg-[#1E1E1E] rounded-[24px] p-6 border border-[#FF5A00]/10 shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#FF5A00]/50 to-transparent" />
-        <div className="inline-block bg-[#FF5A00]/10 text-[#FF5A00] font-bold uppercase tracking-widest text-[9px] px-2 py-1 rounded-full mb-3">
+      <div className="bg-neutral-card rounded-[24px] p-6 border border-primary-orange/10 shadow-lg relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary-orange/50 to-transparent" />
+        <div className="inline-block bg-primary-orange/10 text-primary-orange font-bold uppercase tracking-widest text-[9px] px-2.5 py-1 rounded-full mb-3">
           {t('devotionalOfDay')}
         </div>
-        <h3 className="text-2xl font-bold font-serif text-white mb-2">
+        <h3 className="text-3xl font-bold font-serif text-white mb-2 leading-tight">
           {item.title}
         </h3>
-        <p className="text-gray-400 text-[13px] mb-6">{item.subtitle}</p>
+        <p className="text-zinc-400 text-sm mb-6 font-medium leading-relaxed">{item.subtitle}</p>
 
         <div className="space-y-6">
           <div>
-            <span className="text-[#FF5A00] text-sm font-bold tracking-widest uppercase block mb-4 border-b border-[#FF5A00]/20 pb-2">
+            <span className="text-primary-orange font-serif italic text-base block mb-4 border-b border-primary-orange/20 pb-2">
               {item.reference}
             </span>
             <div className="space-y-5">
               <div>
-                <h4 className="text-white font-bold font-sans text-[11px] uppercase tracking-widest mb-1 opacity-60">
+                <h4 className="text-zinc-400 font-bold font-sans text-[10px] uppercase tracking-widest mb-1.5">
                   {t('introLabel')}
                 </h4>
-                <p className="text-gray-300 text-[14px] leading-relaxed">
+                <p className="text-zinc-200 text-[15px] leading-[1.7]">
                   {item.intro}
                 </p>
               </div>
               <div>
-                <h4 className="text-white font-bold font-sans text-[11px] uppercase tracking-widest mb-1 opacity-60">
+                <h4 className="text-zinc-400 font-bold font-sans text-[10px] uppercase tracking-widest mb-1.5">
                   {t('teachingLabel')}
                 </h4>
-                <p className="text-gray-300 text-[14px] leading-relaxed">
+                <p className="text-zinc-200 text-[15px] leading-[1.7]">
                   {item.ensino}
                 </p>
               </div>
               <div>
-                <h4 className="text-white font-bold font-sans text-[11px] uppercase tracking-widest mb-1 opacity-60">
+                <h4 className="text-zinc-400 font-bold font-sans text-[10px] uppercase tracking-widest mb-1.5">
                   {t('appLabel')}
                 </h4>
-                <p className="text-gray-300 text-[14px] leading-relaxed">
+                <p className="text-zinc-200 text-[15px] leading-[1.7]">
                   {item.aplicacao}
                 </p>
               </div>
               <div>
-                <h4 className="text-white font-bold font-sans text-[11px] uppercase tracking-widest mb-2 opacity-60">
+                <h4 className="text-zinc-400 font-bold font-sans text-[10px] uppercase tracking-widest mb-2">
                   {t('prayerLabel')}
                 </h4>
-                <p className="text-gray-200 text-[15px] leading-relaxed italic border-l-2 border-[#FF5A00] pl-4 py-1">
+                <p className="text-zinc-100 text-[16px] leading-[1.7] font-serif italic border-l-2 border-primary-orange pl-4 py-1">
                   {item.oracao}
                 </p>
               </div>
-              <div className="bg-[#FF5A00]/10 p-5 rounded-2xl mt-6">
-                <h4 className="text-[#FF5A00] font-bold font-sans text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+              <div className="bg-primary-orange/10 p-5 rounded-2xl mt-6 border border-primary-orange/10">
+                <h4 className="text-primary-orange font-bold font-sans text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                   <CheckCircle2 size={16} /> {t('actionLabel')}
                 </h4>
-                <p className="text-white text-[14px] leading-relaxed">
+                <p className="text-white text-[15px] leading-[1.7] font-medium">
                   {item.acao}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-white/5">
+          <div className="pt-4 border-t border-white/5 flex gap-3">
             <button
               onClick={onGoHome}
-              className="w-full bg-[#333] hover:bg-[#444] text-white font-sans font-bold py-3.5 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus:outline-none"
+              className="flex-1 bg-white/5 hover:bg-white/10 text-white font-sans font-bold py-3.5 rounded-full transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus-ring cursor-pointer"
             >
               {t('backHome')}
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex-1 bg-primary-orange hover:bg-primary-orange-hover text-white font-sans font-bold py-3.5 rounded-full transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus-ring cursor-pointer"
+            >
+              <Share2 size={16} /> {t('shareBtn')}
             </button>
           </div>
         </div>
@@ -148,9 +173,11 @@ export function DevocionalView({ onGoHome }: { onGoHome?: () => void }) {
 export function ApoioView({
   onGoHome,
   onGoToStore,
+  hideBackButton = false,
 }: {
   onGoHome?: () => void;
   onGoToStore?: () => void;
+  hideBackButton?: boolean;
 }) {
   const { t } = useLanguage();
   const [showGratitude, setShowGratitude] = useState(false);
@@ -452,7 +479,13 @@ export function ApoioView({
   );
 }
 
-export function LojaView({ onGoHome }: { onGoHome?: () => void }) {
+export function LojaView({
+  onGoHome,
+  hideBackButton = false,
+}: {
+  onGoHome?: () => void;
+  hideBackButton?: boolean;
+}) {
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [purchases, setPurchases] = useState<string[]>([]);
@@ -619,12 +652,14 @@ export function LojaView({ onGoHome }: { onGoHome?: () => void }) {
   return (
     <div className="flex flex-col space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-10">
       <div className="mb-2">
-        <button
-          onClick={onGoHome}
-          className="text-[#FF5A00] flex items-center gap-1 mb-4 text-[13px] font-bold uppercase tracking-wider hover:text-white transition-colors"
-        >
-          <ChevronLeft size={16} /> {t("back")}
-        </button>
+        {!hideBackButton && onGoHome && (
+          <button
+            onClick={onGoHome}
+            className="text-[#FF5A00] flex items-center gap-1 mb-4 text-[13px] font-bold uppercase tracking-wider hover:text-white transition-colors cursor-pointer"
+          >
+            <ChevronLeft size={16} /> {t("back")}
+          </button>
+        )}
         <h2 className="text-white font-serif text-2xl font-bold mb-1 flex items-center gap-3">
           <ShoppingBag className="text-[#FF5A00]" /> {t("storeTitle")}
         </h2>
@@ -646,9 +681,9 @@ export function LojaView({ onGoHome }: { onGoHome?: () => void }) {
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {showCpfPrompt ? (
-            <div className="bg-[#1A1A1A] p-6 rounded-2xl border border-white/10 flex flex-col items-center animate-in fade-in zoom-in duration-300">
+            <div className="bg-neutral-card p-6 rounded-2xl border border-white/10 flex flex-col items-center animate-in fade-in zoom-in duration-300">
               <h3 className="text-white text-lg font-bold mb-2 text-center">Informe seu CPF/CNPJ</h3>
-              <p className="text-gray-400 text-sm mb-4 text-center">
+              <p className="text-zinc-400 text-sm mb-4 text-center font-medium">
                 Para processarmos o pagamento do produto "{showCpfPrompt.name}", o Asaas exige um CPF ou CNPJ válido.
               </p>
               <input
@@ -656,18 +691,18 @@ export function LojaView({ onGoHome }: { onGoHome?: () => void }) {
                 placeholder="000.000.000-00"
                 value={cpf}
                 onChange={(e) => setCpf(e.target.value)}
-                className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 mb-4 focus:outline-none focus:border-[#FF5A00]/50"
+                className="w-full bg-neutral-darker/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-zinc-600 mb-4 focus:outline-none focus:border-primary-orange/50 focus:ring-1 focus:ring-primary-orange/20 transition-colors focus-ring font-medium"
               />
               <div className="flex gap-2 w-full">
                 <button
                   onClick={() => setShowCpfPrompt(null)}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-bold uppercase transition-colors"
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-bold uppercase transition-all cursor-pointer focus-ring"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={confirmPurchase}
-                  className="flex-1 py-3 bg-[#FF5A00] hover:bg-[#E04D00] text-white rounded-xl text-sm font-bold uppercase transition-colors"
+                  className="flex-1 py-3 bg-primary-orange hover:bg-primary-orange-hover text-white rounded-xl text-sm font-bold uppercase transition-all cursor-pointer focus-ring"
                 >
                   Confirmar
                 </button>
@@ -677,11 +712,11 @@ export function LojaView({ onGoHome }: { onGoHome?: () => void }) {
             products.map((p) => (
             <div
               key={p.id}
-              className="bg-[#1A1A1A] rounded-2xl overflow-hidden border border-white/5 flex flex-row group hover:border-[#FF5A00]/30 transition-all"
+              className="bg-neutral-card rounded-2xl overflow-hidden border border-white/5 flex flex-row group hover:border-primary-orange/30 hover:bg-neutral-card-hover transition-all duration-300"
             >
-              <div className="relative w-1/3 min-w-[120px] overflow-hidden bg-[#111]">
+              <div className="relative w-1/3 min-w-[120px] overflow-hidden bg-neutral-darker">
                 {p.tag && (
-                  <div className="absolute top-2 left-2 z-10 bg-[#FF5A00] text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md shadow-md">
+                  <div className="absolute top-2 left-2 z-10 bg-primary-orange text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md shadow-md">
                     {p.tag}
                   </div>
                 )}
@@ -695,16 +730,16 @@ export function LojaView({ onGoHome }: { onGoHome?: () => void }) {
                 <h3 className="text-white text-[15px] font-bold leading-tight mb-1">
                   {p.name}
                 </h3>
-                <p className="text-gray-500 text-[12px] mb-4">{p.desc}</p>
+                <p className="text-zinc-400 text-[12px] mb-4 font-medium">{p.desc}</p>
 
                 <div className="flex items-center justify-between mt-auto">
-                  <p className="text-[#FF5A00] text-[15px] font-bold">
+                  <p className="text-primary-orange text-[15px] font-bold">
                     {p.price}
                   </p>
                   <button
                     onClick={() => handleBuy(p)}
                     disabled={buyingId === p.id}
-                    className="bg-white/5 hover:bg-[#FF5A00] text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors border border-white/10 hover:border-[#FF5A00] disabled:opacity-50"
+                    className="bg-white/5 hover:bg-primary-orange text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-all border border-white/10 hover:border-primary-orange disabled:opacity-50 cursor-pointer focus-ring active:scale-95"
                   >
                     {buyingId === p.id
                       ? "Aguarde..."
@@ -743,6 +778,43 @@ export function LeituraView({ onGoHome }: { onGoHome?: () => void }) {
   const index = (dayOfYear - 1) % db.leituras.length;
   const leituraDoDia = db.leituras[index >= 0 ? index : 0];
 
+  const handleShareLeitura = async () => {
+    const shareText = `*${leituraDoDia.title}*\n_${leituraDoDia.book} ${leituraDoDia.chapter}_\n\n"${leituraDoDia.content}"`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: leituraDoDia.title,
+          text: shareText,
+          url: window.location.origin,
+        });
+      } else {
+        await navigator.clipboard.writeText(`${leituraDoDia.title} (${leituraDoDia.book} ${leituraDoDia.chapter})\n\n"${leituraDoDia.content}"\n\nLeia mais no app: ${window.location.origin}`);
+        alert(t('copied'));
+      }
+    } catch (err) {
+      console.error("Error sharing bible reading:", err);
+    }
+  };
+
+  const handleShareReflection = async () => {
+    if (!reflection) return;
+    const shareText = `*Meditação: ${leituraDoDia.title}*\n\n${reflection}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Meditação - ${leituraDoDia.title}`,
+          text: shareText,
+          url: window.location.origin,
+        });
+      } else {
+        await navigator.clipboard.writeText(`Meditação - ${leituraDoDia.title}\n\n${reflection}\n\nLeia no app: ${window.location.origin}`);
+        alert(t('copied'));
+      }
+    } catch (err) {
+      console.error("Error sharing reflection:", err);
+    }
+  };
+
   const handleMeditar = async () => {
     setIsLoading(true);
     try {
@@ -772,7 +844,7 @@ export function LeituraView({ onGoHome }: { onGoHome?: () => void }) {
         <h2 className="text-white font-serif text-2xl font-bold mb-1 flex items-center gap-3">
           <BookOpen className="text-white text-opacity-50" /> {t('leituraTitle')}
         </h2>
-        <p className="text-gray-400 text-sm">
+        <p className="text-zinc-400 text-sm font-medium">
           {t('leituraSubtitle')} {formattedDate}
         </p>
       </div>
@@ -784,10 +856,19 @@ export function LeituraView({ onGoHome }: { onGoHome?: () => void }) {
         <div className="absolute top-0 right-0 p-4 opacity-5 transform translate-x-2 -translate-y-2">
           <BookOpen size={80} />
         </div>
-        <div className="inline-block bg-black/5 text-black font-bold uppercase tracking-widest text-[9px] px-2 py-1 rounded-full mb-3 relative z-10">
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={handleShareLeitura}
+            className="p-2.5 bg-black/5 hover:bg-black/10 text-black rounded-full transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-black/25"
+            title={t('shareBtn')}
+          >
+            <Share2 size={16} />
+          </button>
+        </div>
+        <div className="inline-block bg-black/5 text-black font-bold uppercase tracking-widest text-[9px] px-2.5 py-1 rounded-full mb-3 relative z-10">
           {t('leituraOfDay')}
         </div>
-        <h3 className="text-2xl font-bold font-serif mb-2 relative z-10">
+        <h3 className="text-2xl font-bold font-serif mb-2 relative z-10 pr-8">
           {leituraDoDia.title}
         </h3>
         <p className="text-black/50 text-[11px] font-bold uppercase tracking-widest mb-5 border-b border-black/10 pb-3 relative z-10">
@@ -799,44 +880,59 @@ export function LeituraView({ onGoHome }: { onGoHome?: () => void }) {
       </div>
 
       {!reflection && !isLoading && (
-        <button
-          onClick={handleMeditar}
-          className="w-full bg-[#FF5A00] text-white font-sans font-bold py-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider hover:bg-[#E04D00] focus:outline-none"
-        >
-          <Bot size={20} />
-          {t('meditateBtn')}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={onGoHome}
+            className="flex-1 bg-white/5 hover:bg-white/10 text-white font-sans font-bold py-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus-ring cursor-pointer"
+          >
+            {t('backHome')}
+          </button>
+          <button
+            onClick={handleMeditar}
+            className="flex-[2] bg-primary-orange text-white font-sans font-bold py-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider hover:bg-primary-orange-hover focus-ring cursor-pointer"
+          >
+            <Bot size={20} />
+            {t('meditateBtn')}
+          </button>
+        </div>
       )}
 
       {isLoading && (
-        <div className="flex justify-center py-8 text-gray-400 gap-3 text-sm">
-          <Loader2 className="animate-spin text-[#FF5A00]" size={20} />
+        <div className="flex justify-center py-8 text-zinc-400 gap-3 text-sm font-medium">
+          <Loader2 className="animate-spin text-primary-orange" size={20} />
           <span>{t('meditateLoading')}</span>
         </div>
       )}
 
       {reflection && (
-        <div className="bg-[#1E1E1E] rounded-[24px] p-6 border border-[#FF5A00]/20 animate-in fade-in duration-500 shadow-xl overflow-hidden relative">
-          <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-[#FF5A00]/0 via-[#FF5A00]/50 to-[#FF5A00]/0" />
+        <div className="bg-neutral-card rounded-[24px] p-6 border border-primary-orange/20 animate-in fade-in duration-500 shadow-xl overflow-hidden relative">
+          <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-transparent via-primary-orange/50 to-transparent" />
           <div
-            className="text-[14px] leading-relaxed mb-6 text-gray-200 markdown-style"
+            className="text-[14px] leading-relaxed mb-6 text-zinc-200 markdown-style"
             dangerouslySetInnerHTML={{
               __html: reflection
                 .replace(/\n{2,}/g, "<br/><br/>")
                 .replace(/\n/g, "<br/>")
                 .replace(
                   /\*\*(.*?)\*\*/g,
-                  '<strong class="text-[#FF5A00]">$1</strong>',
+                  '<strong class="text-primary-orange">$1</strong>',
                 ),
             }}
           />
 
-          <div className="pt-4 border-t border-white/5">
+          <div className="pt-4 border-t border-white/5 flex gap-3">
             <button
               onClick={onGoHome}
-              className="w-full bg-[#333] hover:bg-[#444] text-white font-sans font-bold py-3.5 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus:outline-none"
+              className="flex-1 bg-white/5 hover:bg-white/10 text-zinc-300 font-sans font-bold py-3.5 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus-ring cursor-pointer"
             >
               {t('backHome')}
+            </button>
+            <button
+              onClick={handleShareReflection}
+              className="flex-1 bg-primary-orange hover:bg-primary-orange-hover text-white font-sans font-bold py-3.5 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus-ring cursor-pointer"
+            >
+              <Share2 size={16} />
+              {t('shareBtn')}
             </button>
           </div>
         </div>
@@ -875,14 +971,14 @@ export function DesafioView({ onGoHome }: { onGoHome?: () => void }) {
   if (showSuccess) {
     return (
       <div className="flex flex-col items-center justify-center text-center px-4 py-12 animate-in zoom-in duration-500 min-h-[60vh]">
-        <CheckCircle2 size={80} className="text-[#00D1A0] mb-8" />
+        <CheckCircle2 size={80} className="text-primary-mint mb-8" />
         <h2 className="text-3xl font-serif font-bold text-white mb-6">
           {t('challengeAccepted')}
         </h2>
-        <p className="text-[#00D1A0] text-[20px] font-serif italic leading-relaxed mb-6 px-4">
+        <p className="text-primary-mint text-[20px] font-serif italic leading-relaxed mb-6 px-4">
           {t('challengeQuote')}
         </p>
-        <p className="text-gray-400 font-bold tracking-widest text-sm uppercase">
+        <p className="text-zinc-400 font-bold tracking-widest text-sm uppercase">
           {t('challengeRef')}
         </p>
       </div>
@@ -891,10 +987,10 @@ export function DesafioView({ onGoHome }: { onGoHome?: () => void }) {
 
   return (
     <div className="flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <h2 className="text-[#00D1A0] font-serif text-2xl font-bold mb-2">
+      <h2 className="text-primary-mint font-serif text-2xl font-bold mb-2">
         {t('desafiosTitle')}
       </h2>
-      <p className="text-gray-400 text-sm mb-4">
+      <p className="text-zinc-400 text-sm mb-4 font-medium">
         {t('desafiosSubtitle')}
       </p>
       {db.desafios.map((item) => {
@@ -903,23 +999,27 @@ export function DesafioView({ onGoHome }: { onGoHome?: () => void }) {
           <div
             key={item.id}
             onClick={() => toggleDesafio(item.id)}
-            className={`rounded-[20px] p-5 border transition-all cursor-pointer flex gap-4 ${isDone ? "bg-[#00D1A0]/10 border-[#00D1A0]/30" : "bg-[#1E1E1E] border-white/5 hover:border-[#00D1A0]/50"}`}
+            className={`rounded-[20px] p-5 border transition-all duration-300 cursor-pointer flex gap-4 ${
+              isDone 
+                ? "bg-primary-mint/10 border-primary-mint/30" 
+                : "bg-neutral-card border-white/5 hover:border-primary-mint/40 hover:bg-neutral-card-hover"
+            }`}
           >
             <div className="mt-0.5 shrink-0">
               {isDone ? (
-                <CheckCircle2 className="text-[#00D1A0]" size={24} />
+                <CheckCircle2 className="text-primary-mint" size={24} />
               ) : (
-                <Circle className="text-gray-500" size={24} />
+                <Circle className="text-zinc-500" size={24} />
               )}
             </div>
             <div>
               <h3
-                className={`text-[17px] font-bold font-sans mb-1.5 ${isDone ? "text-[#00D1A0] line-through decoration-[#00D1A0]/50" : "text-white"}`}
+                className={`text-[17px] font-bold font-sans mb-1.5 ${isDone ? "text-primary-mint line-through decoration-primary-mint/50" : "text-white"}`}
               >
                 {item.title}
               </h3>
               <p
-                className={`text-[14px] leading-relaxed ${isDone ? "text-gray-500" : "text-gray-400"}`}
+                className={`text-[14px] leading-relaxed ${isDone ? "text-zinc-500" : "text-zinc-300"}`}
               >
                 {item.description}
               </p>
@@ -931,7 +1031,7 @@ export function DesafioView({ onGoHome }: { onGoHome?: () => void }) {
       <div className="pt-6 mt-4 border-t border-white/5">
         <button
           onClick={handleAccept}
-          className="w-full bg-[#00D1A0] hover:bg-[#00B388] text-black font-sans font-bold py-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-[#00D1A0] focus:ring-offset-2 focus:ring-offset-black"
+          className="w-full bg-primary-mint hover:bg-primary-mint-hover text-black font-sans font-bold py-4 rounded-full transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus-ring cursor-pointer"
         >
           <CheckCircle2 size={20} />
           {t('acceptChallengeBtn')}
@@ -1010,33 +1110,33 @@ export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
   };
 
   return (
-    <div className="flex flex-col h-[65vh] animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="flex flex-col h-full overflow-hidden pb-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="mb-4">
-        <h2 className="text-[#FFD600] font-serif text-2xl font-bold mb-1 flex items-center gap-3">
-          <MessageSquare className="text-[#FFD600]/70" /> {t('shemaCounselor')}
+        <h2 className="text-primary-gold font-serif text-2xl font-bold mb-1 flex items-center gap-3">
+          <MessageSquare className="text-primary-gold/70" /> {t('shemaCounselor')}
         </h2>
-        <p className="text-gray-400 text-sm">
+        <p className="text-zinc-400 text-sm font-medium">
           {t('shemaSubtitle')}
         </p>
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto mb-4 space-y-4 pr-2 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto mb-4 space-y-4 pr-1 custom-scrollbar">
         {messages.map((msg, idx) => (
           <div
             key={idx}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+              className={`flex gap-3.5 max-w-[88%] ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
             >
               <div
-                className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.role === "user" ? "bg-[#FF5A00]/20 text-[#FF5A00]" : "bg-[#FFD600]/20 text-[#FFD600]"}`}
+                className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.role === "user" ? "bg-primary-orange/25 text-primary-orange" : "bg-primary-gold/25 text-primary-gold"}`}
               >
-                {msg.role === "user" ? <User size={16} /> : <Bot size={16} />}
+                {msg.role === "user" ? <User size={15} /> : <Bot size={15} />}
               </div>
               <div
-                className={`p-4 rounded-2xl ${msg.role === "user" ? "bg-[#FF5A00] text-white rounded-tr-none" : "bg-[#1E1E1E] text-gray-200 border border-[#FFD600]/10 rounded-tl-none"}`}
+                className={`p-4 rounded-2xl shadow-md ${msg.role === "user" ? "bg-primary-orange text-white rounded-tr-none" : "bg-neutral-card text-zinc-100 border border-primary-gold/10 rounded-tl-none"}`}
               >
                 <div
                   className="text-[14px] leading-relaxed markdown-style"
@@ -1053,12 +1153,12 @@ export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
         {isLoading && (
           <div className="flex justify-start">
             <div className="flex gap-3 max-w-[85%] flex-row">
-              <div className="shrink-0 w-8 h-8 rounded-full bg-[#FFD600]/20 text-[#FFD600] flex items-center justify-center">
-                <Bot size={16} />
+              <div className="shrink-0 w-8 h-8 rounded-full bg-primary-gold/25 text-primary-gold flex items-center justify-center">
+                <Bot size={15} />
               </div>
-              <div className="p-4 rounded-2xl bg-[#1E1E1E] text-gray-200 border border-[#FFD600]/10 rounded-tl-none flex items-center gap-2">
-                <Loader2 size={16} className="animate-spin text-[#FFD600]" />
-                <span className="text-sm italic text-gray-400">
+              <div className="p-4 rounded-2xl bg-neutral-card text-zinc-100 border border-primary-gold/10 rounded-tl-none flex items-center gap-2.5 shadow-md">
+                <Loader2 size={15} className="animate-spin text-primary-gold" />
+                <span className="text-sm italic text-zinc-400 font-medium">
                   {t('shemaThinking')}
                 </span>
               </div>
@@ -1069,7 +1169,7 @@ export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
       </div>
 
       {/* Input Area / Go Home */}
-      <div className="pt-2 border-t border-white/10 flex gap-2">
+      <div className="pt-3 border-t border-white/5 flex gap-2">
         {!hasReceivedResponse ? (
           <>
             <input
@@ -1078,16 +1178,16 @@ export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
               placeholder={t('askShemaPlaceholder')}
-              className="flex-1 bg-[#1A1A1A] text-white border border-white/10 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-[#FFD600]/50 transition-colors"
+              className="flex-1 bg-neutral-card text-white border border-white/10 rounded-full px-5 py-3 text-sm focus:outline-none focus:border-primary-gold/50 transition-colors focus-ring placeholder-zinc-500 font-medium"
               disabled={isLoading}
             />
             <button
               onClick={handleSend}
               disabled={isLoading || !input.trim()}
-              className="bg-[#FFD600] text-black w-12 h-12 rounded-full flex items-center justify-center shrink-0 hover:bg-[#E6C000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-primary-gold text-black w-11 h-11 rounded-full flex items-center justify-center shrink-0 hover:bg-primary-gold-hover transition-colors disabled:opacity-50 cursor-pointer focus-ring active:scale-90"
             >
               <Send
-                size={18}
+                size={16}
                 className="translate-x-[-1px] translate-y-[1px]"
               />
             </button>
@@ -1095,7 +1195,7 @@ export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
         ) : (
           <button
             onClick={onGoHome}
-            className="w-full bg-[#FFD600] text-black font-sans font-bold py-3 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider hover:bg-[#E6C000]"
+            className="w-full bg-primary-gold hover:bg-primary-gold-hover text-black font-sans font-bold py-3.5 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider cursor-pointer focus-ring"
           >
             {t('backHome')}
           </button>
@@ -1109,10 +1209,12 @@ export function ProfileView({
   onGoHome,
   onGoAdmin,
   onGoToStore,
+  hideBackButton = false,
 }: {
   onGoHome?: () => void;
   onGoAdmin?: () => void;
   onGoToStore?: () => void;
+  hideBackButton?: boolean;
 }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const { t, language, setLanguage } = useLanguage();
@@ -1132,12 +1234,14 @@ export function ProfileView({
   return (
     <div className="flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-500 pb-10">
       <div className="mb-6">
-        <button
-          onClick={onGoHome}
-          className="text-[#FF5A00] flex items-center gap-1 mb-4 text-[13px] font-bold uppercase tracking-wider hover:text-white transition-colors"
-        >
-          <ChevronLeft size={16} /> {t("back")}
-        </button>
+        {!hideBackButton && onGoHome && (
+          <button
+            onClick={onGoHome}
+            className="text-[#FF5A00] flex items-center gap-1 mb-4 text-[13px] font-bold uppercase tracking-wider hover:text-white transition-colors cursor-pointer"
+          >
+            <ChevronLeft size={16} /> {t("back")}
+          </button>
+        )}
         <h2 className="text-white font-serif text-2xl font-bold mb-1 flex items-center gap-3">
           <User className="text-[#00D1A0]" /> {t("profileTitle")}
         </h2>
@@ -1286,7 +1390,7 @@ export function LandingView({ onGoToStore }: { onGoToStore?: () => void }) {
   };
 
   return (
-    <div className="flex flex-col min-h-screen px-6 py-12 justify-center">
+    <div className="flex flex-col min-h-full px-6 py-12 justify-center">
       <div className="text-center mb-10">
         <h1 className="font-serif font-bold text-3xl mb-2 tracking-tight">
           {t("mainTitle")}
