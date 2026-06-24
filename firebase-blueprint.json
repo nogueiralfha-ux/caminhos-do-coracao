@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "A user of the application.",
+      "type": "object",
+      "properties": {
+        "fullName": {
+          "type": "string",
+          "description": "User's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address."
+        },
+        "subscriptionStatus": {
+          "type": "string",
+          "description": "Status of the user's subscription (e.g., active, inactive, pending).",
+          "enum": ["active", "inactive", "pending"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the user was created."
+        }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "product": {
+      "title": "Product",
+      "description": "A store product.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "desc": { "type": "string" },
+        "price": { "type": "string" },
+        "image": { "type": "string" },
+        "tag": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/user"
+      },
+      "description": "Stores user profiles."
+    },
+    "products/{productId}": {
+      "schema": {
+        "$ref": "#/entities/product"
+      },
+      "description": "Stores products."
+    }
+  }
+}
