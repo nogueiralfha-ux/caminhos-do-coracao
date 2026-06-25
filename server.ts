@@ -370,10 +370,10 @@ Que o Senhor te fortaleça e abençoe os seus passos hoje. Amém.`;
     }
   });
 
-  // API Route for Product Checkout (E-books, subscriptions, etc.)
+  // API Route for Product Checkout (E-books, subscriptions, etc. with integrated methods)
   app.post("/api/asaas/checkout-product", async (req, res) => {
     try {
-      const { productId, amount, name, email, cpf, phone, userId, cycle } = req.body;
+      const { productId, amount, name, email, cpf, phone, userId, cycle, paymentMethod, cardInfo } = req.body;
 
       // 1. Criar ou recuperar cliente
       const customerData = await fetchAsaas('/customers', {
@@ -391,7 +391,32 @@ Que o Senhor te fortaleça e abençoe os seus passos hoje. Amém.`;
       dueDate.setDate(dueDate.getDate() + 1); // Amanhã
       const dueDateString = dueDate.toISOString().split('T')[0];
 
+      // Mapeamento correto de billingType para Asaas
+      const billingType = paymentMethod || "UNDEFINED"; // PIX, CREDIT_CARD, BOLETO ou UNDEFINED
+
+      // Dados seguros do Cartão de Crédito
+      const creditCard = billingType === "CREDIT_CARD" && cardInfo ? {
+        holderName: cardInfo.holderName,
+        number: cardInfo.number,
+        expiryMonth: cardInfo.expiryMonth,
+        expiryYear: cardInfo.expiryYear,
+        ccv: cardInfo.ccv
+      } : undefined;
+
+      const creditCardHolderInfo = billingType === "CREDIT_CARD" ? {
+        name,
+        email,
+        cpfCnpj: cpf,
+        postalCode: "01001000", // CEP genérico para passar na validação de endereço
+        addressNumber: "100",
+        phone
+      } : undefined;
+
       let invoiceUrl = "";
+      let pixCode = "";
+      let pixQrCode = "";
+      let bankSlipUrl = "";
+      let paymentId = "";
 
       // Se houver um ciclo (MONTHLY ou YEARLY), cria assinatura recorrente
       if (cycle === "MONTHLY" || cycle === "YEARLY") {
@@ -403,22 +428,27 @@ Que o Senhor te fortaleça e abençoe os seus passos hoje. Amém.`;
           method: 'POST',
           body: JSON.stringify({
             customer: customerId,
-            billingType: 'UNDEFINED',
+            billingType: billingType,
             value: amount,
             nextDueDate: dueDateString,
             cycle: cycle,
             description: description,
-            externalReference: JSON.stringify({ userId, productId })
+            externalReference: JSON.stringify({ userId, productId }),
+            creditCard,
+            creditCardHolderInfo
           })
         });
 
-        // Buscar o primeiro pagamento gerado para obter o invoiceUrl
+        // Buscar o primeiro pagamento gerado para obter detalhes
         const paymentsData = await fetchAsaas(`/subscriptions/${subData.id}/payments`, {
           method: 'GET'
         });
 
         if (paymentsData.data && paymentsData.data.length > 0) {
-          invoiceUrl = paymentsData.data[0].invoiceUrl;
+          const firstPayment = paymentsData.data[0];
+          invoiceUrl = firstPayment.invoiceUrl;
+          paymentId = firstPayment.id;
+          bankSlipUrl = firstPayment.bankSlipUrl || "";
         } else {
           invoiceUrl = "https://www.asaas.com/";
         }
@@ -428,17 +458,40 @@ Que o Senhor te fortaleça e abençoe os seus passos hoje. Amém.`;
           method: 'POST',
           body: JSON.stringify({
             customer: customerId,
-            billingType: 'UNDEFINED',
+            billingType: billingType,
             value: amount,
             dueDate: dueDateString,
             description: `Compra do Produto ID: ${productId}`,
-            externalReference: JSON.stringify({ userId, productId })
+            externalReference: JSON.stringify({ userId, productId }),
+            creditCard,
+            creditCardHolderInfo
           })
         });
         invoiceUrl = paymentData.invoiceUrl;
+        paymentId = paymentData.id;
+        bankSlipUrl = paymentData.bankSlipUrl || "";
+      }
+
+      // Se o método de pagamento foi Pix, buscar os dados de QR Code e Copia e Cola instantaneamente
+      if (billingType === "PIX" && paymentId) {
+        try {
+          const qrCodeData = await fetchAsaas(`/payments/${paymentId}/pixQrCode`, {
+            method: 'GET'
+          });
+          pixCode = qrCodeData.payload || "";
+          pixQrCode = qrCodeData.encodedImage || "";
+        } catch (qrErr) {
+          console.error("Falha ao gerar QR Code Pix:", qrErr);
+        }
       }
       
-      res.json({ invoiceUrl });
+      res.json({ 
+        invoiceUrl,
+        pixCode,
+        pixQrCode,
+        bankSlipUrl,
+        paymentId
+      });
     } catch (error: any) {
       console.error("Erro no checkout do produto:", error);
       res.status(500).json({ error: error.message || "Erro interno no servidor ao processar pagamento do produto." });

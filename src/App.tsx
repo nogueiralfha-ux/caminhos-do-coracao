@@ -22,6 +22,7 @@ import {
   LandingView,
 } from "./components/Views";
 import { AdminView } from "./components/AdminView";
+import { CheckoutView } from "./components/CheckoutView";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -159,16 +160,19 @@ export default function App() {
     },
   ];
 
+  // Estado para armazenar o ID do produto para o checkout direto
+  const [checkoutProductId, setCheckoutProductId] = useState<string | null>(null);
+
   const renderView = () => {
     switch (activeTab) {
       case "devocional":
-        return <DevocionalView onGoHome={() => setActiveTab("home")} subscriptionStatus={subscriptionStatus} trialDaysLeft={trialDaysLeft} onGoToUpgrade={() => setActiveTab("apoio")} />;
+        return <DevocionalView onGoHome={() => setActiveTab("home")} subscriptionStatus={subscriptionStatus} trialDaysLeft={trialDaysLeft} onGoToUpgrade={() => { setCheckoutProductId("plano-plus"); setActiveTab("checkout"); }} />;
       case "leitura":
-        return <LeituraView onGoHome={() => setActiveTab("home")} subscriptionStatus={subscriptionStatus} trialDaysLeft={trialDaysLeft} onGoToUpgrade={() => setActiveTab("apoio")} />;
+        return <LeituraView onGoHome={() => setActiveTab("home")} subscriptionStatus={subscriptionStatus} trialDaysLeft={trialDaysLeft} onGoToUpgrade={() => { setCheckoutProductId("plano-plus"); setActiveTab("checkout"); }} />;
       case "desafio":
         return <DesafioView onGoHome={() => setActiveTab("home")} />;
       case "shema":
-        return <ShemaView onGoHome={() => setActiveTab("home")} subscriptionStatus={subscriptionStatus} trialDaysLeft={trialDaysLeft} onGoToUpgrade={() => setActiveTab("apoio")} />;
+        return <ShemaView onGoHome={() => setActiveTab("home")} subscriptionStatus={subscriptionStatus} trialDaysLeft={trialDaysLeft} onGoToUpgrade={() => { setCheckoutProductId("plano-plus"); setActiveTab("checkout"); }} />;
       case "apoio":
         return (
           <ApoioView
@@ -176,17 +180,20 @@ export default function App() {
             onGoToStore={() => setActiveTab("loja")}
             hideBackButton={true}
             subscriptionStatus={subscriptionStatus}
+            onGoToCheckout={(id) => { setCheckoutProductId(id); setActiveTab("checkout"); }}
           />
         );
       case "loja":
-        return <LojaView onGoHome={() => setActiveTab("home")} hideBackButton={true} subscriptionStatus={subscriptionStatus} />;
+        return <LojaView onGoHome={() => setActiveTab("home")} hideBackButton={true} subscriptionStatus={subscriptionStatus} onGoToCheckout={(id) => { setCheckoutProductId(id); setActiveTab("checkout"); }} />;
+      case "checkout":
+        return <CheckoutView onGoHome={() => { setCheckoutProductId(null); setActiveTab("home"); }} initialProductId={checkoutProductId} subscriptionStatus={subscriptionStatus} />;
       case "perfil":
         return (
           <ProfileView
             onGoHome={() => setActiveTab("home")}
             onGoAdmin={() => setActiveTab("admin")}
             onGoToStore={() => setActiveTab("loja")}
-            onGoToUpgrade={() => setActiveTab("apoio")}
+            onGoToUpgrade={() => { setCheckoutProductId("plano-plus"); setActiveTab("checkout"); }}
             hideBackButton={true}
             subscriptionStatus={subscriptionStatus}
             trialDaysLeft={trialDaysLeft}

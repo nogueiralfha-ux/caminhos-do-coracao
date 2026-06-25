@@ -205,11 +205,13 @@ export function ApoioView({
   onGoToStore,
   hideBackButton = false,
   subscriptionStatus = "inactive",
+  onGoToCheckout,
 }: {
   onGoHome?: () => void;
   onGoToStore?: () => void;
   hideBackButton?: boolean;
   subscriptionStatus?: "inactive" | "active" | "premium";
+  onGoToCheckout?: (productId: string) => void;
 }) {
   const { t } = useLanguage();
   const [showGratitude, setShowGratitude] = useState(false);
@@ -330,6 +332,13 @@ export function ApoioView({
   };
 
   const startCheckout = (type: "unica" | "mensal" | "plus" | "premium") => {
+    if (onGoToCheckout) {
+      if (type === "plus") onGoToCheckout("plano-plus");
+      else if (type === "premium") onGoToCheckout("plano-premium");
+      else if (type === "unica") onGoToCheckout("apoio-avulso-unica");
+      else if (type === "mensal") onGoToCheckout("apoio-avulso-mensal");
+      return;
+    }
     setCheckoutType(type);
     setErrorMsg("");
     setFormData(prev => ({
@@ -601,9 +610,13 @@ export function ApoioView({
 export function LojaView({
   onGoHome,
   hideBackButton = false,
+  onGoToCheckout,
+  subscriptionStatus = "inactive",
 }: {
   onGoHome?: () => void;
   hideBackButton?: boolean;
+  onGoToCheckout?: (productId: string) => void;
+  subscriptionStatus?: string;
 }) {
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
@@ -718,6 +731,11 @@ export function LojaView({
     if (purchases.includes(product.id) && product.isDigital) {
       // Já possui o e-book, baixar
       window.open(product.downloadUrl, "_blank");
+      return;
+    }
+
+    if (onGoToCheckout) {
+      onGoToCheckout(product.id);
       return;
     }
 
