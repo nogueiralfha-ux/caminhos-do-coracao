@@ -23,6 +23,10 @@ import {
   Share2,
   Eye,
   EyeOff,
+  Volume2,
+  VolumeX,
+  Play,
+  Square
 } from "lucide-react";
 import { databases } from "../data";
 import { auth, db } from "../lib/firebase";
@@ -89,6 +93,110 @@ export function DevocionalView({
     window.open(whatsappUrl, "_blank");
   };
 
+  // --- AUDIO BOOK TTS SYSTEM ---
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioSpeed, setAudioSpeed] = useState(1);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Cancela a fala quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  const toggleAudio = () => {
+    if (isLocked) {
+      alert("Recurso disponível no Plano Plus.");
+      return;
+    }
+
+    if (isPlayingAudio) {
+      window.speechSynthesis.pause();
+      setIsPlayingAudio(false);
+    } else {
+      // Se já estava pausado, retoma
+      if (window.speechSynthesis.paused && utteranceRef.current) {
+        window.speechSynthesis.resume();
+        setIsPlayingAudio(true);
+        return;
+      }
+
+      // Caso contrário, inicia uma nova leitura
+      window.speechSynthesis.cancel(); // garante limpeza
+      
+      const fullText = `
+        Devocional de hoje. ${item.title}. 
+        Referência bíblica. ${item.reference}. 
+        Introdução. ${item.intro}. 
+        Ensino. ${item.ensino}. 
+        Aplicação. ${item.aplicacao}. 
+        Oração. ${item.oracao}. 
+        Ação prática para hoje. ${item.acao}.
+      `;
+
+      const utterance = new SpeechSynthesisUtterance(fullText);
+      utterance.lang = language === "en" ? "en-US" : language === "es" ? "es-ES" : "pt-BR";
+      utterance.rate = audioSpeed;
+
+      utterance.onend = () => {
+        setIsPlayingAudio(false);
+        utteranceRef.current = null;
+      };
+
+      utterance.onerror = () => {
+        setIsPlayingAudio(false);
+        utteranceRef.current = null;
+      };
+
+      utteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+      setIsPlayingAudio(true);
+    }
+  };
+
+  const stopAudio = () => {
+    window.speechSynthesis.cancel();
+    setIsPlayingAudio(false);
+    utteranceRef.current = null;
+  };
+
+  const handleSpeedChange = (speed: number) => {
+    setAudioSpeed(speed);
+    if (utteranceRef.current) {
+      // Para aplicar a velocidade imediatamente, reiniciamos a partir da fala atual
+      const wasPlaying = isPlayingAudio;
+      stopAudio();
+      if (wasPlaying) {
+        setTimeout(() => {
+          const fullText = `
+            Devocional de hoje. ${item.title}. 
+            Referência bíblica. ${item.reference}. 
+            Introdução. ${item.intro}. 
+            Ensino. ${item.ensino}. 
+            Aplicação. ${item.aplicacao}. 
+            Oração. ${item.oracao}. 
+            Ação prática para hoje. ${item.acao}.
+          `;
+          const utterance = new SpeechSynthesisUtterance(fullText);
+          utterance.lang = language === "en" ? "en-US" : language === "es" ? "es-ES" : "pt-BR";
+          utterance.rate = speed;
+          utterance.onend = () => {
+            setIsPlayingAudio(false);
+            utteranceRef.current = null;
+          };
+          utterance.onerror = () => {
+            setIsPlayingAudio(false);
+            utteranceRef.current = null;
+          };
+          utteranceRef.current = utterance;
+          window.speechSynthesis.speak(utterance);
+          setIsPlayingAudio(true);
+        }, 100);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="mb-2">
@@ -108,7 +216,56 @@ export function DevocionalView({
         <h3 className="text-3xl font-bold font-serif text-white mb-2 leading-tight">
           {item.title}
         </h3>
-        <p className="text-zinc-400 text-sm mb-6 font-medium leading-relaxed">{item.subtitle}</p>
+        <p className="text-zinc-400 text-sm mb-4 font-medium leading-relaxed">{item.subtitle}</p>
+
+        {/* 🎧 PLAY AUDIO PLAYER (AUDIOBOOK SYSTEM) */}
+        <div className="bg-[#111] border border-white/5 rounded-2xl p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleAudio}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                isPlayingAudio ? "bg-primary-orange text-white" : "bg-white/10 text-white hover:bg-white/20"
+              }`}
+              title={isPlayingAudio ? "Pausar leitura" : "Ouvir áudio-livro"}
+            >
+              {isPlayingAudio ? <Volume2 size={18} className="animate-pulse" /> : <Play size={18} className="translate-x-[1px]" />}
+            </button>
+            {isPlayingAudio && (
+              <button
+                onClick={stopAudio}
+                className="w-8 h-8 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors"
+                title="Parar áudio"
+              >
+                <Square size={12} fill="currentColor" />
+              </button>
+            )}
+            <div>
+              <span className="text-xs font-bold text-white block">
+                {isPlayingAudio ? "Ouvindo Devocional..." : "Ouvir Devocional"}
+              </span>
+              <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block">
+                {isLocked ? "🔒 Conteúdo Exclusivo Plus" : "Audiobook Nativo AI"}
+              </span>
+            </div>
+          </div>
+
+          {!isLocked && (
+            <div className="flex items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-full border border-white/5">
+              <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Velocidade:</span>
+              {([1, 1.25, 1.5, 2] as const).map((speed) => (
+                <button
+                  key={speed}
+                  onClick={() => handleSpeedChange(speed)}
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded transition-all cursor-pointer ${
+                    audioSpeed === speed ? "bg-primary-orange text-white" : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  {speed}x
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="space-y-6">
           <div>
