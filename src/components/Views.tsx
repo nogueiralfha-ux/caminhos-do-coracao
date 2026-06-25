@@ -93,17 +93,40 @@ export function DevocionalView({
     window.open(whatsappUrl, "_blank");
   };
 
-  // --- AUDIO BOOK TTS SYSTEM ---
+  // --- AUDIO BOOK HYBRID SYSTEM (REAL MP3 + TTS FALLBACK) ---
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isRealAudio, setIsRealAudio] = useState(false);
   const [audioSpeed, setAudioSpeed] = useState(1);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Cancela a fala quando o componente for desmontado
+  // Efetua a inicialização e cancelamento de áudios pendentes
   useEffect(() => {
+    // Carregar elemento de áudio real
+    const audioEl = new Audio();
+    audioRef.current = audioEl;
+
+    audioEl.onended = () => {
+      setIsPlayingAudio(false);
+    };
+    audioEl.onerror = () => {
+      console.warn("Falha ao reproduzir áudio gravado. Acionando TTS...");
+      setIsPlayingAudio(false);
+      setIsRealAudio(false);
+    };
+
     return () => {
       window.speechSynthesis.cancel();
+      audioEl.pause();
     };
   }, []);
+
+  // Sincroniza velocidade se for áudio real
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = audioSpeed;
+    }
+  }, [audioSpeed]);
 
   const toggleAudio = () => {
     if (isLocked) {
@@ -111,19 +134,51 @@ export function DevocionalView({
       return;
     }
 
+    // Se temos áudio real (MP3 gravado) configurado para este devocional
+    if (item.audioUrl) {
+      if (!audioRef.current) return;
+      
+      if (isPlayingAudio) {
+        audioRef.current.pause();
+        setIsPlayingAudio(false);
+      } else {
+        // Pausar TTS se estiver falando
+        window.speechSynthesis.cancel();
+
+        setIsRealAudio(true);
+        // Só define src se for diferente para evitar recarregar
+        if (audioRef.current.src !== item.audioUrl) {
+          audioRef.current.src = item.audioUrl;
+        }
+        audioRef.current.playbackRate = audioSpeed;
+        audioRef.current.play().then(() => {
+          setIsPlayingAudio(true);
+        }).catch((err) => {
+          console.error("Erro ao tocar áudio real:", err);
+          // Fallback para TTS imediato caso a URL falhe
+          runTts();
+        });
+      }
+      return;
+    }
+
+    // Se não há áudio real, aciona o TTS Sintético
+    runTts();
+  };
+
+  const runTts = () => {
+    setIsRealAudio(false);
     if (isPlayingAudio) {
       window.speechSynthesis.pause();
       setIsPlayingAudio(false);
     } else {
-      // Se já estava pausado, retoma
       if (window.speechSynthesis.paused && utteranceRef.current) {
         window.speechSynthesis.resume();
         setIsPlayingAudio(true);
         return;
       }
 
-      // Caso contrário, inicia uma nova leitura
-      window.speechSynthesis.cancel(); // garante limpeza
+      window.speechSynthesis.cancel();
       
       const fullText = `
         Devocional de hoje. ${item.title}. 
@@ -156,15 +211,21 @@ export function DevocionalView({
   };
 
   const stopAudio = () => {
-    window.speechSynthesis.cancel();
+    if (isRealAudio && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    } else {
+      window.speechSynthesis.cancel();
+      utteranceRef.current = null;
+    }
     setIsPlayingAudio(false);
-    utteranceRef.current = null;
   };
 
   const handleSpeedChange = (speed: number) => {
     setAudioSpeed(speed);
-    if (utteranceRef.current) {
-      // Para aplicar a velocidade imediatamente, reiniciamos a partir da fala atual
+    if (isRealAudio && audioRef.current) {
+      audioRef.current.playbackRate = speed;
+    } else if (!isRealAudio && utteranceRef.current) {
       const wasPlaying = isPlayingAudio;
       stopAudio();
       if (wasPlaying) {
@@ -244,7 +305,7 @@ export function DevocionalView({
                 {isPlayingAudio ? "Ouvindo Devocional..." : "Ouvir Devocional"}
               </span>
               <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block">
-                {isLocked ? "🔒 Conteúdo Exclusivo Plus" : "Audiobook Nativo AI"}
+                {isLocked ? "🔒 Conteúdo Exclusivo Plus" : item.audioUrl ? "Voz Real Gravada (MP3)" : "Audiobook Nativo AI"}
               </span>
             </div>
           </div>
