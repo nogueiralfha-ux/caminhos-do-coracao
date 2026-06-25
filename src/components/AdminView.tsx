@@ -21,7 +21,8 @@ export function AdminView({
     price: '',
     image: '',
     tag: '',
-    checkoutUrl: ''
+    checkoutUrl: '',
+    pdfUrl: ''
   });
 
   useEffect(() => {
@@ -43,14 +44,15 @@ export function AdminView({
       price: p.price || '',
       image: p.image || '',
       tag: p.tag || '',
-      checkoutUrl: p.checkoutUrl || ''
+      checkoutUrl: p.checkoutUrl || '',
+      pdfUrl: p.pdfUrl || ''
     });
   };
 
   const handleCancel = () => {
     setEditingId(null);
     setErrorMsg(null);
-    setFormData({ name: '', desc: '', price: '', image: '', tag: '', checkoutUrl: '' });
+    setFormData({ name: '', desc: '', price: '', image: '', tag: '', checkoutUrl: '', pdfUrl: '' });
   };
 
   const processImageUrl = (url: string) => {
@@ -257,6 +259,15 @@ export function AdminView({
               value={formData.checkoutUrl} onChange={e => setFormData({...formData, checkoutUrl: e.target.value})}
               className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-[#FF5A00] outline-none"
               placeholder="https://sandbox.asaas.com/..."
+            />
+          </div>
+
+          <div>
+            <label className="text-gray-400 text-[11px] uppercase tracking-widest font-bold mb-1 block">Link do Arquivo Digital (PDF / E-book)</label>
+            <input 
+              value={formData.pdfUrl} onChange={e => setFormData({...formData, pdfUrl: e.target.value})}
+              className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-[#FF5A00] outline-none"
+              placeholder="Ex: https://drive.google.com/uc?export=download&id=..."
             />
           </div>
 

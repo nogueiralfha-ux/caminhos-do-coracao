@@ -477,6 +477,20 @@ Que o Senhor te fortaleça e abençoe os seus passos hoje. Amém.`;
                     });
                     console.log(`[SUCCESS] E-book/Produto ${productId} liberado na coleção do usuário ${userId}`);
 
+                    // 1.5 Busca detalhes do produto para extrair o nome e link de download do PDF
+                    let pdfDownloadLink = "";
+                    let productRealName = productId;
+                    try {
+                      const prodDoc = await db.collection("products").doc(productId).get();
+                      if (prodDoc.exists) {
+                        const prodData = prodDoc.data();
+                        productRealName = prodData?.name || productId;
+                        pdfDownloadLink = prodData?.pdfUrl || "";
+                      }
+                    } catch (prodErr) {
+                      console.error("[ERROR] Falha ao buscar detalhes do produto no Firestore:", prodErr);
+                    }
+
                     // 2. Recupera dados cadastrais do usuário para envio de notificações
                     const userDoc = await db.collection("users").doc(userId).get();
                     const userData = userDoc.exists ? userDoc.data() : null;
@@ -512,12 +526,23 @@ Que o Senhor te fortaleça e abençoe os seus passos hoje. Amém.`;
                             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 12px;">
                               <h2 style="color: #FF5A00; text-align: center; font-family: serif;">Caminhos do Coração</h2>
                               <p>Olá, <strong>${recipientName}</strong>,</p>
-                              <p>Temos a alegria de informar que o seu pagamento referente ao produto <strong>"${productId}"</strong> foi confirmado com sucesso!</p>
+                              <p>Temos a alegria de informar que o seu pagamento referente ao produto <strong>"${productRealName}"</strong> foi confirmado com sucesso!</p>
                               <p>Seu acesso foi liberado de forma totalmente automática no seu perfil no aplicativo.</p>
                               
                               ${isPremium || isPlus 
                                 ? `<p>O seu plano de assinatura está ativo. Todo o conteúdo exclusivo, devocionais avançados e o Shemá Multilíngue já estão liberados para você.</p>`
-                                : `<p>Seu e-book/produto digital já está disponível. Você pode lê-lo acessando a loja ou a área de materiais no aplicativo.</p>`
+                                : `
+                                  <p>Seu e-book/produto digital já está disponível para leitura no aplicativo.</p>
+                                  ${pdfDownloadLink 
+                                    ? `
+                                      <p>Você também pode baixar o arquivo PDF diretamente clicando no botão abaixo:</p>
+                                      <div style="text-align: center; margin: 25px 0;">
+                                        <a href="${pdfDownloadLink}" style="background-color: #00D1A0; color: white; padding: 12px 24px; text-decoration: none; border-radius: 24px; font-weight: bold; font-size: 13px; display: inline-block;">Baixar E-book (PDF)</a>
+                                      </div>
+                                    ` 
+                                    : ""
+                                  }
+                                `
                               }
 
                               <div style="text-align: center; margin: 30px 0;">
@@ -556,7 +581,7 @@ Que o Senhor te fortaleça e abençoe os seus passos hoje. Amém.`;
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
                             phone: cleanPhone,
-                            message: `Olá, ${recipientName}! Seu pagamento foi aprovado! 🎉 Seu acesso ao produto *${productId}* já está liberado de forma automática no aplicativo Caminhos do Coração. Acesse pelo link: ${process.env.APP_URL || 'http://localhost:3001'}`
+                            message: `Olá, ${recipientName}! Seu pagamento foi aprovado! 🎉 Seu acesso ao produto *${productRealName}* já está liberado de forma automática no aplicativo Caminhos do Coração. ${pdfDownloadLink ? `Baixe seu PDF diretamente aqui: ${pdfDownloadLink}` : `Acesse pelo link: ${process.env.APP_URL || 'http://localhost:3001'}`}`
                           })
                         });
                         console.log(`[SUCCESS] Notificação WhatsApp enviada para o telefone ${cleanPhone}`);
