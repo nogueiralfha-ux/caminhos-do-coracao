@@ -1,91 +1,21 @@
+import devocionaisJson from "./data/devocionais.json";
+
+const mappedPtDevocionais = devocionaisJson.map((d: any, index: number) => ({
+  id: index + 1,
+  title: d.tema,
+  subtitle: d.frase,
+  reference: d.referencia,
+  date: `Dia ${d.dia}`,
+  intro: d.introducao,
+  ensino: d.ensino,
+  aplicacao: d.aplicacao,
+  oracao: d.frase,
+  acao: d.acao
+}));
+
 export const databases = {
   pt: {
-    devocionais: [
-      {
-        id: 1,
-        title: "O Chamado do Amor",
-        subtitle: "A essência da Missio Dei",
-        reference: "João 3:16",
-        date: "Dia 1",
-        intro: "A missão de Deus não começa com uma tarefa, mas com o coração dEle. Ele amou o mundo de tal maneira que a Sua resposta imediata foi o sacrifício e a doação do Seu próprio Filho.",
-        ensino: "A 'Missio Dei' (Missão de Deus) revela que Ele é o protagonista da história da redenção. Nós fomos convidados a participar do que Ele já está fazendo no mundo. Quando entendemos que a missão nasce do amor de Deus, percebemos que não se trata de obrigação ou religiosidade, mas de transbordar a graça que nos alcançou primeiro.",
-        aplicacao: "Onde você pode ser um reflexo genuíno do amor de Deus hoje? Muitas vezes, a missão começa dentro da nossa própria casa, no ambiente de trabalho ou em uma pequena atitude de bondade, paciência e perdão com um desconhecido.",
-        oracao: "Senhor, enche o meu coração com o Teu amor incondicional. Que os meus olhos vejam as pessoas exatamente como Tu as vês. Ajuda-me a ser um instrumento vivo da Tua paz onde quer que eu vá hoje. Em nome de Jesus, amém.",
-        acao: "Envie uma mensagem encorajadora para alguém que o Espírito Santo trouxer à sua memória neste momento, declarando o amor de Deus sobre a vida dela."
-      },
-      {
-        id: 2,
-        title: "Passos de Fé e Renúncia",
-        subtitle: "Ouvindo e obedecendo o chamado",
-        reference: "Gênesis 12:1-3",
-        date: "Dia 2",
-        intro: "Abraão foi chamado para deixar sua terra e sua parentela rumo ao desconhecido. A verdadeira obediência sempre exigirá que deixemos nossa zona de conforto.",
-        ensino: "Deus frequentemente nos chama para fora do nosso conforto não para nos punir, mas para nos moldar. A renúncia é o primeiro passo para experimentar a provisão e a direção divina. O chamado de Deus sempre vem acompanhado da promessa de que Ele estará conosco e nos abençoará para abençoar outros.",
-        aplicacao: "Avalie com sinceridade o que tem prendido você na sua zona de conforto. Será o medo do futuro? A insegurança? Ou o apego a planos próprios? Dar um passo de fé significa confiar que a promessa de Deus é maior que a sua estabilidade atual.",
-        oracao: "Pai celestial, dá-me a coragem e a ousadia de Abraão para obedecer à Tua voz, mesmo quando o caminho à frente parecer incerto ou difícil. Ensina-me a confiar de todo o coração que os Teus planos são infinitamente melhores que os meus. Amém.",
-        acao: "Identifique uma área da sua vida ou rotina onde Deus tem pedido mudança e dê hoje o primeiro passo prático de obediência e renúncia."
-      },
-      {
-        id: 3,
-        title: "A Luz no Mundo",
-        subtitle: "Sendo testemunha através das atitudes",
-        reference: "Mateus 5:14-16",
-        date: "Dia 3",
-        intro: "Jesus nos chamou para ser a luz do mundo. Uma luz não existe para iluminar a si mesma, mas para afastar as trevas do ambiente ao seu redor.",
-        ensino: "Não escondemos uma candeia debaixo de uma vasilha. Da mesma forma, nossa fé e os dons que recebemos não são apenas para consumo interno na igreja, mas para brilhar na sociedade. Nossas boas obras devem ser visíveis não para a nossa glória, mas para que as pessoas glorifiquem o Pai que está nos céus.",
-        aplicacao: "Em lugares onde há fofoca, seja a fonte de encorajamento. Onde há desespero, leve palavras de esperança. A sua postura no trabalho, na escola ou no trânsito é a pregação mais forte que muitas pessoas ouvirão na vida.",
-        oracao: "Senhor, que a Tua luz resplandeça em mim. Que eu não me envergonhe de testemunhar do Teu amor nas pequenas atitudes. Que a minha vida seja um farol para os que estão na escuridão ao meu redor. Amém.",
-        acao: "Ofereça ajuda prática a alguém do seu convívio que está sobrecarregado (no trabalho ou em casa) sem pedir ou esperar nada em troca."
-      },
-      {
-        id: 4,
-        title: "O Custo do Discipulado",
-        subtitle: "Pegando a própria cruz",
-        reference: "Lucas 9:23",
-        date: "Dia 4",
-        intro: "Seguir a Cristo é a jornada mais recompensadora, mas também a que mais exige de nós. Jesus deixou claro que o discipulado custa tudo o que somos e temos.",
-        ensino: "Negar-se a si mesmo não é perder a própria identidade, mas render a vontade, desejos e agenda à soberania de Cristo. Tomar a cruz diariamente significa abraçar os sacrifícios e rejeições que vêm ao escolher fazer o certo perante o mundo. O caminho de Jesus não promete facilidade, mas promete a Sua santa e reconfortante presença.",
-        aplicacao: "Onde os seus desejos têm se chocado com a vontade revelada de Deus? Há algum hábito diário, ambição ou amizade que está impedindo você de carregar a sua cruz com integridade?",
-        oracao: "Jesus amado, purifica as minhas intenções. Dá-me graça para negar o meu egoísmo, orgulho e vaidade. Que a Tua vontade seja estabelecida na minha vida diária acima das minhas próprias vontades. Amém.",
-        acao: "Abra mão de um direito ou privilégio seu hoje em favor de outra pessoa (pode ser dar a preferência, o lugar no ônibus, ou ceder numa discussão)."
-      },
-      {
-        id: 5,
-        title: "Compaixão pelas Multidões",
-        subtitle: "Sentindo a dor do mundo",
-        reference: "Mateus 9:36-38",
-        date: "Dia 5",
-        intro: "Ao ver as multidões, Jesus não sentiu irritação ou apenas um dever tático, Ele sentiu profunda e visceral compaixão porque estavam aflitas e exaustas.",
-        ensino: "O coração de Cristo se move pelas 'ovelhas que não têm pastor'. A verdadeira missão evangélica nasce da compaixão sincera e não de metas proselitistas. Antes de pedir para irmos, Jesus nos pede para orar por mais trabalhadores, alinhando nosso coração ao dEle para enxergar as aflições reais dos outros.",
-        aplicacao: "Ao andar na rua, olhar o noticiário ou falar com colegas, como você os enxerga? Apenas como rostos ou como almas profundamente amadas que precisam desesperadamente de propósito e descanso?",
-        oracao: "Senhor, quebra o meu coração pelo que quebra o Teu. Cura a minha indiferença. Dá-me olhos para ver as multidões exaustas ao meu redor e mãos prontas para socorrer e guiar a Ti. Amém.",
-        acao: "Ore de forma fervorosa e intencional pelas pessoas que você verá durante o seu deslocamento hoje (no ônibus, no trânsito, na rua)."
-      },
-      {
-        id: 6,
-        title: "O Envio no Poder do Espírito",
-        subtitle: "A dependência que frutifica",
-        reference: "Atos 1:8",
-        date: "Dia 6",
-        intro: "A ordem de pregar ao mundo parecia impossível para um pequeno grupo de pescadores medrosos. Por isso, a promessa do Espírito antecede a missão.",
-        ensino: "Não podemos cumprir a Missão de Deus dependendo das nossas próprias forças, eloquência ou estratégias formidáveis. O Espírito Santo é o verdadeiro Diretor da Missão. É Ele quem capacita com ousadia, consolida as palavras e convence corações. Trabalhar sem o Espírito é fadiga; com Ele, há descanso e verdadeiro poder.",
-        aplicacao: "Você tem tentado resolver relacionamentos difíceis ou testemunhar com base nos seus próprios argumentos lógicos? Entregue o controle ao Espírito Santo. A dependência dEle é a chave para o testemunho transcultural eficaz.",
-        oracao: "Espírito Santo, eu reconheço a minha total limitação. Vem encher-me novamente hoje. Unge os meus lábios e direciona os meus passos para aqueles que o Senhor já preparou. Amém.",
-        acao: "Separe 10 minutos de silêncio absolutos hoje apenas para se conectar com o Espírito Santo antes de tomar qualquer decisão ou entrar em uma conversa difícil."
-      },
-      {
-        id: 7,
-        title: "Até os Confins da Terra",
-        subtitle: "O alvo eterno",
-        reference: "Apocalipse 7:9-10",
-        date: "Dia 7",
-        intro: "Toda a história caminha para um grandioso evento ápice: uma multidão incontável de todas as nações, tribos, povos e línguas adorando diante do Trono.",
-        ensino: "A nossa missão local faz parte de uma engrenagem global e celestial. A adoração é o objetivo final da missão; as missões existem porque a adoração ainda não existe em todos os lugares. Saber qual será o fim glorioso de todas as coisas nos injeta força para não desistirmos das aflições momentâneas de pregar as Boas Novas.",
-        aplicacao: "Como a sua vida, vocação e recursos estão contribuindo para que o mundo conheça a Cristo? A visão do Trono não deve apenas nos consolar para a eternidade, mas mobilizar nossas mãos agora, no presente.",
-        oracao: "Soberano Rei, que o Teu nome seja conhecido em todas as nações da Terra. Ajuda-me a investir o meu tempo, talentos e tesouros naquilo que terá impacto e eco eterno. Usa-me para o avanço da Tua glória. Amém.",
-        acao: "Procure se informar ou ore e contribua de forma intencional com algum missionário ou projeto que atua de forma transcultural ou na sua cidade."
-      }
-    ],
+    devocionais: mappedPtDevocionais,
     leituras: [
       {
         id: 1,

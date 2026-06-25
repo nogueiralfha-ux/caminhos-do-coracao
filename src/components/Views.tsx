@@ -21,6 +21,8 @@ import {
   Settings,
   Globe,
   Share2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { databases } from "../data";
 import { auth, db } from "../lib/firebase";
@@ -45,7 +47,17 @@ import { useLanguage } from "../i18n/Context";
 import { Language } from "../i18n/translations";
 import { sanitizeHtml } from "../lib/security";
 
-export function DevocionalView({ onGoHome }: { onGoHome?: () => void }) {
+export function DevocionalView({
+  onGoHome,
+  subscriptionStatus = "inactive",
+  trialDaysLeft = null,
+  onGoToUpgrade,
+}: {
+  onGoHome?: () => void;
+  subscriptionStatus?: "inactive" | "active" | "premium";
+  trialDaysLeft?: number | null;
+  onGoToUpgrade?: () => void;
+}) {
   const { t, language } = useLanguage();
   const today = new Date();
   const formattedDate = today.toLocaleDateString("pt-BR", {
@@ -63,22 +75,18 @@ export function DevocionalView({ onGoHome }: { onGoHome?: () => void }) {
   const index = (dayOfYear - 1) % db.devocionais.length;
   const item = db.devocionais[index >= 0 ? index : 0];
 
-  const handleShare = async () => {
-    const shareText = `*${item.title}*\n_${item.subtitle}_\n\n*Referência:* ${item.reference}\n\n*Introdução:* ${item.intro}\n\n*Ensino:* ${item.ensino}\n\n*Ação:* ${item.acao}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: item.title,
-          text: shareText,
-          url: window.location.origin,
-        });
-      } else {
-        await navigator.clipboard.writeText(`${item.title} (${item.reference})\n\n"${item.intro}"\n\nLeia mais no app: ${window.location.origin}`);
-        alert(t('copied'));
-      }
-    } catch (err) {
-      console.error("Error sharing devotional:", err);
+  const isPremiumUser = subscriptionStatus === "active" || subscriptionStatus === "premium";
+  const hasActiveTrial = trialDaysLeft !== null && trialDaysLeft > 0;
+  const isLocked = !isPremiumUser && !hasActiveTrial;
+
+  const handleShare = () => {
+    if (isLocked) {
+      alert("Disponível apenas no plano ativo.");
+      return;
     }
+    const shareText = `*${item.title}*\n_${item.subtitle}_\n\n*Referência:* ${item.reference}\n\n*Introdução:* ${item.intro}\n\n*Ensino:* ${item.ensino}\n\n*Ação:* ${item.acao}\n\nLeia mais no app: ${window.location.origin}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+    window.open(whatsappUrl, "_blank");
   };
 
   return (
@@ -116,38 +124,57 @@ export function DevocionalView({ onGoHome }: { onGoHome?: () => void }) {
                   {item.intro}
                 </p>
               </div>
-              <div>
-                <h4 className="text-zinc-400 font-bold font-sans text-[10px] uppercase tracking-widest mb-1.5">
-                  {t('teachingLabel')}
-                </h4>
-                <p className="text-zinc-200 text-[15px] leading-[1.7]">
-                  {item.ensino}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-zinc-400 font-bold font-sans text-[10px] uppercase tracking-widest mb-1.5">
-                  {t('appLabel')}
-                </h4>
-                <p className="text-zinc-200 text-[15px] leading-[1.7]">
-                  {item.aplicacao}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-zinc-400 font-bold font-sans text-[10px] uppercase tracking-widest mb-2">
-                  {t('prayerLabel')}
-                </h4>
-                <p className="text-zinc-100 text-[16px] leading-[1.7] font-serif italic border-l-2 border-primary-orange pl-4 py-1">
-                  {item.oracao}
-                </p>
-              </div>
-              <div className="bg-primary-orange/10 p-5 rounded-2xl mt-6 border border-primary-orange/10">
-                <h4 className="text-primary-orange font-bold font-sans text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
-                  <CheckCircle2 size={16} /> {t('actionLabel')}
-                </h4>
-                <p className="text-white text-[15px] leading-[1.7] font-medium">
-                  {item.acao}
-                </p>
-              </div>
+
+              {isLocked ? (
+                <div className="relative mt-6 p-6 rounded-2xl bg-neutral-darker/50 border border-white/5 text-center flex flex-col items-center">
+                  <span className="text-2xl mb-2">🔒</span>
+                  <h4 className="text-white text-sm font-bold mb-1.5">Conteúdo Exclusivo do Plano Plus</h4>
+                  <p className="text-zinc-400 text-[11px] mb-4 max-w-xs leading-relaxed font-medium">
+                    O seu período de teste grátis expirou. Assine o **Plano Plus** por apenas **R$ 17,90/mês** para liberar os estudos teológicos diários, desafios de fé e ações práticas!
+                  </p>
+                  <button
+                    onClick={onGoToUpgrade}
+                    className="bg-primary-orange hover:bg-primary-orange-hover text-white text-[10px] font-bold uppercase tracking-wider px-5 py-2.5 rounded-full transition-all active:scale-95 cursor-pointer focus-ring shadow-md"
+                  >
+                    Liberar Todo Conteúdo
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h4 className="text-zinc-400 font-bold font-sans text-[10px] uppercase tracking-widest mb-1.5">
+                      {t('teachingLabel')}
+                    </h4>
+                    <p className="text-zinc-200 text-[15px] leading-[1.7]">
+                      {item.ensino}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-zinc-400 font-bold font-sans text-[10px] uppercase tracking-widest mb-1.5">
+                      {t('appLabel')}
+                    </h4>
+                    <p className="text-zinc-200 text-[15px] leading-[1.7]">
+                      {item.aplicacao}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-zinc-400 font-bold font-sans text-[10px] uppercase tracking-widest mb-2">
+                      {t('prayerLabel')}
+                    </h4>
+                    <p className="text-zinc-100 text-[16px] leading-[1.7] font-serif italic border-l-2 border-primary-orange pl-4 py-1">
+                      {item.oracao}
+                    </p>
+                  </div>
+                  <div className="bg-primary-orange/10 p-5 rounded-2xl mt-6 border border-primary-orange/10">
+                    <h4 className="text-primary-orange font-bold font-sans text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <CheckCircle2 size={16} /> {t('actionLabel')}
+                    </h4>
+                    <p className="text-white text-[15px] leading-[1.7] font-medium">
+                      {item.acao}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -158,12 +185,14 @@ export function DevocionalView({ onGoHome }: { onGoHome?: () => void }) {
             >
               {t('backHome')}
             </button>
-            <button
-              onClick={handleShare}
-              className="flex-1 bg-primary-orange hover:bg-primary-orange-hover text-white font-sans font-bold py-3.5 rounded-full transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus-ring cursor-pointer"
-            >
-              <Share2 size={16} /> {t('shareBtn')}
-            </button>
+            {!isLocked && (
+              <button
+                onClick={handleShare}
+                className="flex-1 bg-primary-orange hover:bg-primary-orange-hover text-white font-sans font-bold py-3.5 rounded-full transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus-ring cursor-pointer"
+              >
+                <Share2 size={16} /> {t('shareBtn')}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -175,54 +204,108 @@ export function ApoioView({
   onGoHome,
   onGoToStore,
   hideBackButton = false,
+  subscriptionStatus = "inactive",
 }: {
   onGoHome?: () => void;
   onGoToStore?: () => void;
   hideBackButton?: boolean;
+  subscriptionStatus?: "inactive" | "active" | "premium";
 }) {
   const { t } = useLanguage();
   const [showGratitude, setShowGratitude] = useState(false);
-  const [checkoutType, setCheckoutType] = useState<"unica" | "mensal" | null>(
-    null,
-  );
-  const [completedType, setCompletedType] = useState<"unica" | "mensal" | null>(
-    null,
-  );
+  const [checkoutType, setCheckoutType] = useState<"unica" | "mensal" | "plus" | "premium" | null>(null);
+  const [completedType, setCompletedType] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     cpf: "",
+    phone: "",
     amount: "",
   });
+  
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  useEffect(() => {
+    if (auth.currentUser) {
+      setFormData(prev => ({
+        ...prev,
+        name: auth.currentUser?.displayName || "",
+        email: auth.currentUser?.email || "",
+      }));
+    }
+  }, []);
+
   const handleProcessPayment = async () => {
-    if (
-      !formData.name ||
-      !formData.email ||
-      !formData.cpf ||
-      !formData.amount
-    ) {
+    if (!formData.name || !formData.email || !formData.cpf) {
       setErrorMsg("Por favor, preencha todos os campos obrigatórios.");
       return;
     }
+    const cleanCpf = formData.cpf.replace(/\D/g, "");
+    if (cleanCpf.length < 11) {
+      setErrorMsg("Por favor, informe um CPF ou CNPJ válido.");
+      return;
+    }
+    const cleanPhone = formData.phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      setErrorMsg("Por favor, informe um WhatsApp/Celular válido com DDD.");
+      return;
+    }
+
+    if ((checkoutType === "unica" || checkoutType === "mensal") && !formData.amount) {
+      setErrorMsg("Por favor, informe o valor da oferta.");
+      return;
+    }
+
     setLoading(true);
     setErrorMsg("");
     
-    // Abre a aba antes do await para evitar bloqueador de popups
+    // Abre a aba antes do await para contornar o bloqueador de popups do navegador
     const newWindow = window.open('about:blank', '_blank');
     
     try {
-      const res = await fetch("/api/asaas/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: checkoutType,
-          ...formData,
-          amount: parseFloat(formData.amount.replace(",", ".")),
-        }),
-      });
+      let res;
+      if (checkoutType === "plus" || checkoutType === "premium") {
+        // Fluxo de Assinaturas (Plus e Premium)
+        const isPlus = checkoutType === "plus";
+        res = await fetch("/api/asaas/checkout-product", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId: isPlus ? "plano-plus" : "plano-premium",
+            amount: isPlus ? 17.90 : 29.90,
+            name: formData.name,
+            email: formData.email,
+            cpf: cleanCpf,
+            phone: cleanPhone,
+            userId: auth.currentUser?.uid,
+            cycle: "MONTHLY"
+          }),
+        });
+      } else {
+        // Fluxo de Ofertas (Única ou Mensal de Apoio)
+        const amountVal = parseFloat(formData.amount.replace(",", "."));
+        if (isNaN(amountVal) || amountVal < 50) {
+          if (newWindow) newWindow.close();
+          setErrorMsg("O valor mínimo para a oferta é de R$ 50,00.");
+          setLoading(false);
+          return;
+        }
+
+        res = await fetch("/api/asaas/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: checkoutType,
+            name: formData.name,
+            email: formData.email,
+            cpf: cleanCpf,
+            amount: amountVal,
+          }),
+        });
+      }
+
       const data = await res.json();
 
       if (data.error) {
@@ -240,27 +323,27 @@ export function ApoioView({
       }
     } catch (err) {
       if (newWindow) newWindow.close();
-      setErrorMsg("Erro de conexão ao processar. Tente novamente mais tarde.");
+      setErrorMsg("Erro de conexão ao processar. Tente novamente.");
     } finally {
       setLoading(false);
     }
   };
 
-  const startCheckout = (type: "unica" | "mensal") => {
+  const startCheckout = (type: "unica" | "mensal" | "plus" | "premium") => {
     setCheckoutType(type);
     setErrorMsg("");
-    setFormData({
-      name: "",
-      email: "",
-      cpf: "",
-      amount: type === "mensal" ? "50" : "",
-    });
+    setFormData(prev => ({
+      ...prev,
+      cpf: localStorage.getItem("checkout_cpf") || "",
+      phone: localStorage.getItem("checkout_phone") || "",
+      amount: (type === "unica" || type === "mensal") ? "50" : "",
+    }));
   };
 
   if (showGratitude) {
     return (
       <div className="flex flex-col items-center justify-center text-center px-4 py-12 animate-in zoom-in duration-500 min-h-[60vh]">
-        <Heart size={80} className="text-[#FF5A00] mb-8" fill="#FF5A00" />
+        <Heart size={80} className="text-[#FF5A00] mb-8 animate-pulse" fill="#FF5A00" />
         <h2 className="text-3xl font-serif font-bold text-white mb-6">
           Gratidão!
         </h2>
@@ -272,19 +355,18 @@ export function ApoioView({
           2 Coríntios 9:7
         </p>
         <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-          Sua semente ajuda a espalhar a luz do Evangelho. Por favor, conclua o
+          Sua assinatura ou oferta está sendo processada. Conclua o
           pagamento na aba segura do Asaas que acabou de ser aberta!
         </p>
 
-        {completedType === "mensal" && (
+        {completedType === "premium" && (
           <div className="bg-[#1A1A1A] border border-[#FF5A00]/50 rounded-[24px] p-6 mb-8 w-full max-w-sm shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-transparent via-[#FF5A00] to-transparent" />
             <h3 className="text-white font-bold text-lg mb-2">
-              Bem-vindo(a) aos Mantenedores!
+              Bem-vindo(a) ao Plano Premium!
             </h3>
             <p className="text-gray-400 text-[13px] mb-5 leading-relaxed">
-              Conforme prometido, aqui está o seu cupom de{" "}
-              <strong>20% de desconto</strong> para utilizar em nossa loja:
+              Aqui está o seu cupom do Clube de Descontos para a loja:
             </p>
             <div className="bg-black border border-dashed border-[#FF5A00] rounded-xl py-3 px-4 mb-5 flex items-center justify-center">
               <span className="text-[#FF5A00] font-mono font-bold tracking-widest text-xl">
@@ -293,7 +375,7 @@ export function ApoioView({
             </div>
             <button
               onClick={onGoToStore}
-              className="w-full bg-[#FF5A00]/10 border border-[#FF5A00]/50 text-[#FF5A00] hover:bg-[#FF5A00] hover:text-white font-bold py-3 rounded-full text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-[#FF5A00]/10 border border-[#FF5A00]/50 text-[#FF5A00] hover:bg-[#FF5A00] hover:text-white font-bold py-3 rounded-full text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <ShoppingBag size={16} /> Visitar Loja Agora
             </button>
@@ -302,7 +384,7 @@ export function ApoioView({
 
         <button
           onClick={onGoHome}
-          className="w-full max-w-sm bg-white/5 text-gray-300 font-sans font-bold py-3.5 rounded-full transition-colors text-sm uppercase tracking-wider hover:bg-white/10 hover:text-white focus:outline-none"
+          className="w-full max-w-sm bg-white/5 text-gray-300 font-sans font-bold py-3.5 rounded-full transition-colors text-sm uppercase tracking-wider hover:bg-white/10 hover:text-white focus:outline-none cursor-pointer"
         >
           {t('backHome')}
         </button>
@@ -311,21 +393,27 @@ export function ApoioView({
   }
 
   if (checkoutType) {
+    const isPlus = checkoutType === "plus";
+    const isPremium = checkoutType === "premium";
+    
     return (
       <div className="flex flex-col space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div className="mb-2">
           <button
             onClick={() => setCheckoutType(null)}
-            className="text-[#FF5A00] flex items-center gap-1 mb-4 text-[13px] font-bold uppercase tracking-wider hover:text-white transition-colors"
+            className="text-[#FF5A00] flex items-center gap-1 mb-4 text-[13px] font-bold uppercase tracking-wider hover:text-white transition-colors cursor-pointer"
           >
             <ChevronLeft size={16} /> {t('back')}
           </button>
           <h2 className="text-white font-serif text-2xl font-bold mb-1">
-            {checkoutType === "unica" ? "Oferta Única" : "Compromisso Mensal"}
+            {isPlus ? "Assinar Plano Plus" : isPremium ? "Assinar Plano Premium" : checkoutType === "unica" ? "Oferta Única" : "Compromisso Mensal"}
           </h2>
           <p className="text-gray-400 text-sm leading-relaxed">
-            Preencha seus dados para prosseguirmos para o ambiente seguro do
-            Asaas.
+            {isPlus 
+              ? "Confirme seus dados para ativar sua Assinatura do Plano Plus (R$ 17,90/mês)." 
+              : isPremium 
+              ? "Confirme seus dados para ativar sua Assinatura do Plano Premium (R$ 29,90/mês)." 
+              : "Preencha seus dados para prosseguirmos para o ambiente seguro do Asaas."}
           </p>
         </div>
 
@@ -340,38 +428,37 @@ export function ApoioView({
             placeholder="E-mail"
             type="email"
             value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             className="w-full bg-[#1A1A1A] text-white border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-[#FF5A00]/50 text-sm"
           />
           <input
             placeholder="CPF ou CNPJ (apenas números)"
             value={formData.cpf}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                cpf: e.target.value.replace(/\D/g, ""),
-              })
-            }
+            onChange={(e) => setFormData({ ...formData, cpf: e.target.value.replace(/\D/g, "") })}
             className="w-full bg-[#1A1A1A] text-white border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-[#FF5A00]/50 text-sm"
           />
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-bold">
-              R$
-            </span>
-            <input
-              placeholder="Valor"
-              type="number"
-              step="0.01"
-              min="5"
-              value={formData.amount}
-              onChange={(e) =>
-                setFormData({ ...formData, amount: e.target.value })
-              }
-              className="w-full bg-[#1A1A1A] text-white border border-white/10 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-[#FF5A00]/50 text-sm font-bold"
-            />
-          </div>
+          <input
+            placeholder="WhatsApp / Celular (com DDD)"
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, "") })}
+            className="w-full bg-[#1A1A1A] text-white border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-[#FF5A00]/50 text-sm"
+          />
+          {(checkoutType === "unica" || checkoutType === "mensal") && (
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-bold">
+                R$
+              </span>
+              <input
+                placeholder="Valor"
+                type="number"
+                step="0.01"
+                min="50"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                className="w-full bg-[#1A1A1A] text-white border border-white/10 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-[#FF5A00]/50 text-sm font-bold"
+              />
+            </div>
+          )}
         </div>
 
         {errorMsg && (
@@ -385,7 +472,7 @@ export function ApoioView({
         <button
           onClick={handleProcessPayment}
           disabled={loading}
-          className="w-full bg-[#FF5A00] text-white font-sans font-bold py-3.5 rounded-full transition-colors text-sm uppercase tracking-wider hover:bg-[#E04D00] focus:outline-none flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-[#FF5A00] hover:bg-[#E04D00] text-white font-sans font-bold py-3.5 rounded-full transition-colors text-sm uppercase tracking-wider focus:outline-none flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           {loading ? (
             <Loader2 className="animate-spin" size={18} />
@@ -396,85 +483,116 @@ export function ApoioView({
         </button>
 
         <p className="text-center text-gray-500 text-[11px] px-4 font-medium flex items-center justify-center gap-1.5 opacity-80">
-          Você será redirecionado para o Checkout Asaas.
+          Você será redirecionado para a página de faturamento seguro do Asaas.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="flex flex-col space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-10">
       <div className="mb-2">
         <h2 className="text-white font-serif text-2xl font-bold mb-1 flex items-center gap-3">
-          <Heart className="text-[#FF5A00]" /> Apoio Missionário
+          <Heart className="text-[#FF5A00]" /> Planos e Assinaturas
         </h2>
-        <p className="text-gray-400 text-sm">
-          Juntos na expansão do Reino de Deus.
+        <p className="text-gray-400 text-sm leading-relaxed">
+          Escolha o plano ideal e ajude a sustentar e propagar a Missio Dei.
         </p>
       </div>
 
-      {/* Oferta Única */}
-      <div className="bg-[#1E1E1E] rounded-[24px] p-6 border border-white/5 relative overflow-hidden">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="bg-[#FF5A00]/20 p-3 rounded-full">
-            <Gift className="text-[#FF5A00]" size={24} />
+      {/* Plans Section */}
+      <div className="grid grid-cols-1 gap-4">
+        {/* Plano Plus */}
+        <div className="bg-[#1E1E1E] rounded-[24px] p-6 border border-white/5 relative overflow-hidden flex flex-col group hover:border-[#00E5FF]/20 transition-all duration-300">
+          <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-transparent via-[#00E5FF]/40 to-transparent" />
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <span className="text-[#00E5FF] text-[9px] font-bold uppercase tracking-widest bg-[#00E5FF]/10 px-2.5 py-1 rounded-md mb-2 block w-fit">
+                Recomendado
+              </span>
+              <h3 className="text-2xl font-serif font-bold text-white leading-tight">Plano Plus</h3>
+            </div>
+            <div className="text-right">
+              <span className="text-[#00E5FF] font-serif text-xl font-bold">R$ 17,90</span>
+              <span className="text-zinc-500 text-[10px] block">/mês</span>
+            </div>
           </div>
-          <h3 className="text-xl font-bold font-serif text-white">
-            Oferta Única
-          </h3>
-        </div>
-        <p className="text-gray-400 text-[14px] leading-relaxed mb-6">
-          Semeie de forma pontual em nossos projetos missionários. Toda oferta é
-          revertida para o avanço da Missio Dei.
-        </p>
-        <button
-          onClick={() => startCheckout("unica")}
-          className="w-full border border-[#FF5A00]/50 text-[#FF5A00] font-sans font-bold py-3 rounded-full transition-colors text-sm uppercase tracking-wider hover:bg-[#FF5A00]/10 focus:outline-none"
-        >
-          Ofertar Agora
-        </button>
-      </div>
-
-      {/* Compromisso Mensal */}
-      <div className="bg-gradient-to-br from-[#1E1E1E] to-[#2A1600] rounded-[24px] p-6 border border-[#FF5A00]/30 relative overflow-hidden shadow-xl">
-        <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-[#FF5A00]/0 via-[#FF5A00]/80 to-[#FF5A00]/0" />
-        <div className="flex items-center gap-3 mb-4">
-          <div className="bg-[#FF5A00] p-3 rounded-full">
-            <CreditCard className="text-white" size={24} />
-          </div>
-          <h3 className="text-xl font-bold font-serif text-white">
-            Compromisso Mensal
-          </h3>
-        </div>
-
-        <div className="space-y-3 mb-6">
-          <p className="text-gray-300 text-[14px] leading-relaxed">
-            Torne-se um mantenedor e faça parte ativa das nossas missões
-            mensalmente.
+          <p className="text-gray-400 text-sm leading-relaxed mb-6">
+            Acesso a todo o conteúdo espiritual exclusivo. Perfeito para seu devocional diário.
           </p>
-          <div className="bg-black/30 rounded-xl p-4 border border-[#FF5A00]/10">
-            <h4 className="text-[#FF5A00] text-[11px] uppercase tracking-widest font-bold mb-2">
-              Benefícios de ser fiel:
-            </h4>
-            <ul className="text-gray-400 text-sm space-y-2 list-disc list-inside">
-              <li>
-                <strong className="text-gray-200">20% de Desconto</strong> na
-                Loja Missionária
-              </li>
-              <li>
-                <strong className="text-gray-200">E-book Grátis</strong> a cada
-                2 meses de apoio
-              </li>
+          <div className="bg-black/30 rounded-xl p-4 border border-[#00E5FF]/10 mb-6">
+            <ul className="text-zinc-300 text-xs space-y-2">
+              <li className="flex items-center gap-2">✓ Devocional Diário Completo</li>
+              <li className="flex items-center gap-2">✓ Meditações AI Ilimitadas (Leitura)</li>
+              <li className="flex items-center gap-2">✓ Conselheiro Espiritual AI (Shemá) 24h</li>
             </ul>
           </div>
+          <button
+            onClick={() => startCheckout("plus")}
+            className="w-full bg-[#00E5FF]/10 hover:bg-[#00E5FF] text-[#00E5FF] hover:text-black font-sans font-bold py-3.5 rounded-full transition-all text-xs uppercase tracking-widest border border-[#00E5FF]/20 hover:border-[#00E5FF] cursor-pointer"
+          >
+            Assinar Plano Plus
+          </button>
         </div>
 
-        <button
-          onClick={() => startCheckout("mensal")}
-          className="w-full bg-[#FF5A00] text-white font-sans font-bold py-3 rounded-full transition-colors text-sm uppercase tracking-wider hover:bg-[#E04D00] focus:outline-none"
-        >
-          Assinar Compromisso
-        </button>
+        {/* Plano Premium */}
+        <div className="bg-gradient-to-br from-[#1E1E1E] to-[#2B2000] rounded-[24px] p-6 border border-[#FFD700]/20 relative overflow-hidden flex flex-col group hover:border-[#FFD700]/40 transition-all duration-300 shadow-xl">
+          <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-transparent via-[#FFD700]/50 to-transparent" />
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <span className="text-[#FFD700] text-[9px] font-bold uppercase tracking-widest bg-[#FFD700]/10 px-2.5 py-1 rounded-md mb-2 block w-fit">
+                Completo
+              </span>
+              <h3 className="text-2xl font-serif font-bold text-white leading-tight">Plano Premium</h3>
+            </div>
+            <div className="text-right">
+              <span className="text-[#FFD700] font-serif text-xl font-bold">R$ 29,90</span>
+              <span className="text-zinc-500 text-[10px] block">/mês</span>
+            </div>
+          </div>
+          <p className="text-gray-400 text-sm leading-relaxed mb-6">
+            Conteúdo espiritual completo, clube de benefícios e apoio especial à obra missionária.
+          </p>
+          <div className="bg-black/30 rounded-xl p-4 border border-[#FFD700]/10 mb-6">
+            <ul className="text-[#FFD700] text-xs space-y-2">
+              <li className="flex items-center gap-2">✓ Tudo do Plano Plus</li>
+              <li className="flex items-center gap-2">✓ Cupom Permanente (20% OFF na Loja)</li>
+              <li className="flex items-center gap-2">✓ E-books Grátis nos Lançamentos</li>
+              <li className="flex items-center gap-2">✓ Apoiador Destaque da Missio Dei</li>
+            </ul>
+          </div>
+          <button
+            onClick={() => startCheckout("premium")}
+            className="w-full bg-[#FFD700] hover:bg-[#E6C200] text-black font-sans font-bold py-3.5 rounded-full transition-all text-xs uppercase tracking-widest cursor-pointer shadow-lg"
+          >
+            Assinar Plano Premium
+          </button>
+        </div>
+      </div>
+
+      {/* Donation Divider & Expandable Support Option */}
+      <div className="pt-6 border-t border-white/5">
+        <h3 className="text-white font-serif text-lg font-bold mb-2 flex items-center gap-2">
+          🌱 Outras Formas de Apoio
+        </h3>
+        <p className="text-gray-400 text-xs mb-4">
+          Prefere fazer uma semeadura direta sem assinatura? Utilize o Apoio Missionário avulso:
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => startCheckout("unica")}
+            className="py-3 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[11px] font-bold uppercase tracking-wider transition-colors border border-white/5 cursor-pointer text-center"
+          >
+            Oferta Única
+          </button>
+          <button
+            onClick={() => startCheckout("mensal")}
+            className="py-3 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[11px] font-bold uppercase tracking-wider transition-colors border border-white/5 cursor-pointer text-center"
+          >
+            Compromisso Mensal
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -493,8 +611,11 @@ export function LojaView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [buyingId, setBuyingId] = useState<string | null>(null);
-  const [showCpfPrompt, setShowCpfPrompt] = useState<any | null>(null);
-  const [cpf, setCpf] = useState("");
+  const [showCheckoutModal, setShowCheckoutModal] = useState<any | null>(null);
+  const [cpf, setCpf] = useState(() => localStorage.getItem("checkout_cpf") || "");
+  const [phone, setPhone] = useState(() => localStorage.getItem("checkout_phone") || "");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
     // Buscar produtos
@@ -600,33 +721,91 @@ export function LojaView({
       return;
     }
 
-    setShowCpfPrompt(product);
+    setFullName(auth.currentUser.displayName || "");
+    setEmail(auth.currentUser.email || "");
+    setShowCheckoutModal(product);
   };
 
   const confirmPurchase = async () => {
-    if (!showCpfPrompt || !cpf) {
-      setError("Por favor, informe seu CPF.");
+    if (!showCheckoutModal) return;
+    setError(null);
+
+    if (!fullName.trim()) {
+      setError("Por favor, informe seu nome completo.");
+      return;
+    }
+    if (!email.trim() || !email.includes("@")) {
+      setError("Por favor, informe um e-mail válido.");
+      return;
+    }
+    const cleanCpf = cpf.replace(/\D/g, "");
+    if (cleanCpf.length < 11) {
+      setError("Por favor, informe um CPF ou CNPJ válido.");
+      return;
+    }
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      setError("Por favor, informe um número de celular válido com DDD.");
       return;
     }
 
-    const product = showCpfPrompt;
-    setShowCpfPrompt(null);
+    const product = showCheckoutModal;
+    setShowCheckoutModal(null);
+
+    // Salva no localStorage para a próxima compra
+    localStorage.setItem("checkout_cpf", cpf);
+    localStorage.setItem("checkout_phone", phone);
     
     // Abre a aba antes do await para contornar o bloqueador de popups do navegador
     const newWindow = window.open('about:blank', '_blank');
 
     setBuyingId(product.id);
+
+    // Detecção dinâmica de assinatura
+    const isSubscription = product.cycle === "MONTHLY" || product.cycle === "YEARLY" || 
+      product.isSubscription ||
+      product.name?.toLowerCase().includes("assinatura") ||
+      product.name?.toLowerCase().includes("plano") ||
+      product.desc?.toLowerCase().includes("mensal") ||
+      product.desc?.toLowerCase().includes("anual") ||
+      product.price?.toLowerCase().includes("mês") ||
+      product.price?.toLowerCase().includes("ano");
+
+    let cycle: "MONTHLY" | "YEARLY" | undefined = undefined;
+    if (isSubscription) {
+      if (product.cycle === "YEARLY" || product.name?.toLowerCase().includes("anual") || product.desc?.toLowerCase().includes("anual") || product.price?.toLowerCase().includes("ano")) {
+        cycle = "YEARLY";
+      } else {
+        cycle = "MONTHLY";
+      }
+    }
+
+    // Tentar extrair preço numérico de forma segura
+    let parsedPrice = 0;
+    if (product.priceValue) {
+      parsedPrice = product.priceValue;
+    } else {
+      const numberString = product.price
+        .replace("R$", "")
+        .replace(/\./g, "")
+        .replace(",", ".")
+        .trim();
+      parsedPrice = parseFloat(numberString) || 0;
+    }
+
     try {
       const res = await fetch("/api/asaas/checkout-product", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: product.id,
-          amount: product.priceValue || parseFloat(product.price.replace("R$", "").replace(",", ".")),
-          name: auth.currentUser?.displayName || "Usuário do App",
-          email: auth.currentUser?.email,
-          cpf: cpf.replace(/\D/g, ""), // Limpa caracteres não numéricos
-          userId: auth.currentUser?.uid
+          amount: parsedPrice,
+          name: fullName,
+          email: email,
+          cpf: cleanCpf,
+          phone: cleanPhone,
+          userId: auth.currentUser?.uid,
+          cycle: cycle
         }),
       });
 
@@ -635,7 +814,6 @@ export function LojaView({
         if (newWindow) {
           newWindow.location.href = data.invoiceUrl;
         } else {
-          // Fallback caso o navegador tenha bloqueado até a aba about:blank
           window.location.href = data.invoiceUrl;
         }
       } else {
@@ -681,31 +859,88 @@ export function LojaView({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {showCpfPrompt ? (
-            <div className="bg-neutral-card p-6 rounded-2xl border border-white/10 flex flex-col items-center animate-in fade-in zoom-in duration-300">
-              <h3 className="text-white text-lg font-bold mb-2 text-center">Informe seu CPF/CNPJ</h3>
-              <p className="text-zinc-400 text-sm mb-4 text-center font-medium">
-                Para processarmos o pagamento do produto "{showCpfPrompt.name}", o Asaas exige um CPF ou CNPJ válido.
-              </p>
-              <input
-                type="text"
-                placeholder="000.000.000-00"
-                value={cpf}
-                onChange={(e) => setCpf(e.target.value)}
-                className="w-full bg-neutral-darker/60 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-zinc-600 mb-4 focus:outline-none focus:border-primary-orange/50 focus:ring-1 focus:ring-primary-orange/20 transition-colors focus-ring font-medium"
-              />
+          {showCheckoutModal ? (
+            <div className="bg-neutral-card p-6 rounded-2xl border border-white/10 flex flex-col animate-in fade-in zoom-in duration-300">
+              <h3 className="text-white text-lg font-bold mb-4 text-center flex items-center justify-center gap-2 font-serif">
+                <CreditCard className="text-[#FF5A00]" size={20} /> Checkout Seguro
+              </h3>
+              
+              {/* Product Summary */}
+              <div className="flex gap-4 p-3 bg-neutral-darker/60 rounded-xl border border-white/5 mb-4">
+                <img 
+                  src={showCheckoutModal.image} 
+                  alt={showCheckoutModal.name} 
+                  className="w-16 h-16 rounded-lg object-cover bg-neutral-darker"
+                />
+                <div className="flex flex-col justify-center">
+                  <span className="text-white text-sm font-bold leading-snug">{showCheckoutModal.name}</span>
+                  <span className="text-[#FF5A00] text-sm font-bold mt-1">{showCheckoutModal.price}</span>
+                  <span className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                    {showCheckoutModal.cycle === "MONTHLY" || showCheckoutModal.name?.toLowerCase().includes("assinatura") || showCheckoutModal.name?.toLowerCase().includes("plano") || showCheckoutModal.desc?.toLowerCase().includes("mensal") || showCheckoutModal.price?.toLowerCase().includes("mês") 
+                      ? "Assinatura Recorrente" 
+                      : "Pagamento Único"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-3 mb-5">
+                <div>
+                  <label className="text-xs text-zinc-400 font-semibold mb-1 block">Nome Completo</label>
+                  <input
+                    type="text"
+                    placeholder="Seu nome completo"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full bg-neutral-darker/60 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-primary-orange/50 focus:ring-1 focus:ring-primary-orange/20 transition-colors font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 font-semibold mb-1 block">E-mail para entrega</label>
+                  <input
+                    type="email"
+                    placeholder="seuemail@exemplo.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-neutral-darker/60 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-primary-orange/50 focus:ring-1 focus:ring-primary-orange/20 transition-colors font-medium"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-zinc-400 font-semibold mb-1 block">CPF / CNPJ</label>
+                    <input
+                      type="text"
+                      placeholder="000.000.000-00"
+                      value={cpf}
+                      onChange={(e) => setCpf(e.target.value)}
+                      className="w-full bg-neutral-darker/60 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-primary-orange/50 focus:ring-1 focus:ring-primary-orange/20 transition-colors font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-400 font-semibold mb-1 block">WhatsApp / Celular</label>
+                    <input
+                      type="text"
+                      placeholder="(00) 00000-0000"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full bg-neutral-darker/60 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-primary-orange/50 focus:ring-1 focus:ring-primary-orange/20 transition-colors font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-2 w-full">
                 <button
-                  onClick={() => setShowCpfPrompt(null)}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-bold uppercase transition-all cursor-pointer focus-ring"
+                  onClick={() => setShowCheckoutModal(null)}
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold uppercase transition-all cursor-pointer focus-ring"
                 >
-                  Cancelar
+                  Voltar
                 </button>
                 <button
                   onClick={confirmPurchase}
-                  className="flex-1 py-3 bg-primary-orange hover:bg-primary-orange-hover text-white rounded-xl text-sm font-bold uppercase transition-all cursor-pointer focus-ring"
+                  className="flex-1 py-3 bg-primary-orange hover:bg-primary-orange-hover text-white rounded-xl text-xs font-bold uppercase transition-all cursor-pointer focus-ring flex items-center justify-center gap-1"
                 >
-                  Confirmar
+                  Confirmar e Pagar
                 </button>
               </div>
             </div>
@@ -751,15 +986,25 @@ export function LojaView({
                 </div>
               </div>
             </div>
-          ))
-        )}
+            ))
+          )}
         </div>
       )}
     </div>
   );
 }
 
-export function LeituraView({ onGoHome }: { onGoHome?: () => void }) {
+export function LeituraView({
+  onGoHome,
+  subscriptionStatus = "inactive",
+  trialDaysLeft = null,
+  onGoToUpgrade,
+}: {
+  onGoHome?: () => void;
+  subscriptionStatus?: "inactive" | "active" | "premium";
+  trialDaysLeft?: number | null;
+  onGoToUpgrade?: () => void;
+}) {
   const { t, language } = useLanguage();
   const [reflection, setReflection] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -779,44 +1024,25 @@ export function LeituraView({ onGoHome }: { onGoHome?: () => void }) {
   const index = (dayOfYear - 1) % db.leituras.length;
   const leituraDoDia = db.leituras[index >= 0 ? index : 0];
 
-  const handleShareLeitura = async () => {
-    const shareText = `*${leituraDoDia.title}*\n_${leituraDoDia.book} ${leituraDoDia.chapter}_\n\n"${leituraDoDia.content}"`;
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: leituraDoDia.title,
-          text: shareText,
-          url: window.location.origin,
-        });
-      } else {
-        await navigator.clipboard.writeText(`${leituraDoDia.title} (${leituraDoDia.book} ${leituraDoDia.chapter})\n\n"${leituraDoDia.content}"\n\nLeia mais no app: ${window.location.origin}`);
-        alert(t('copied'));
-      }
-    } catch (err) {
-      console.error("Error sharing bible reading:", err);
-    }
+  const isPremiumUser = subscriptionStatus === "active" || subscriptionStatus === "premium";
+  const hasActiveTrial = trialDaysLeft !== null && trialDaysLeft > 0;
+  const isLocked = !isPremiumUser && !hasActiveTrial;
+
+  const handleShareLeitura = () => {
+    const shareText = `*${leituraDoDia.title}*\n_${leituraDoDia.book} ${leituraDoDia.chapter}_\n\n"${leituraDoDia.content}"\n\nLeia mais no app: ${window.location.origin}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+    window.open(whatsappUrl, "_blank");
   };
 
-  const handleShareReflection = async () => {
+  const handleShareReflection = () => {
     if (!reflection) return;
-    const shareText = `*Meditação: ${leituraDoDia.title}*\n\n${reflection}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `Meditação - ${leituraDoDia.title}`,
-          text: shareText,
-          url: window.location.origin,
-        });
-      } else {
-        await navigator.clipboard.writeText(`Meditação - ${leituraDoDia.title}\n\n${reflection}\n\nLeia no app: ${window.location.origin}`);
-        alert(t('copied'));
-      }
-    } catch (err) {
-      console.error("Error sharing reflection:", err);
-    }
+    const shareText = `*Meditação: ${leituraDoDia.title}*\n\n${reflection}\n\nLeia mais no app: ${window.location.origin}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+    window.open(whatsappUrl, "_blank");
   };
 
   const handleMeditar = async () => {
+    if (isLocked) return;
     setIsLoading(true);
     try {
       const res = await fetch("/api/leitura/meditation", {
@@ -881,20 +1107,46 @@ export function LeituraView({ onGoHome }: { onGoHome?: () => void }) {
       </div>
 
       {!reflection && !isLoading && (
-        <div className="flex gap-3">
-          <button
-            onClick={onGoHome}
-            className="flex-1 bg-white/5 hover:bg-white/10 text-white font-sans font-bold py-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus-ring cursor-pointer"
-          >
-            {t('backHome')}
-          </button>
-          <button
-            onClick={handleMeditar}
-            className="flex-[2] bg-primary-orange text-white font-sans font-bold py-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider hover:bg-primary-orange-hover focus-ring cursor-pointer"
-          >
-            <Bot size={20} />
-            {t('meditateBtn')}
-          </button>
+        <div className="flex flex-col gap-3">
+          {isLocked ? (
+            <div className="p-5 rounded-2xl bg-neutral-card border border-white/10 text-center flex flex-col items-center">
+              <span className="text-xl mb-1">🔒</span>
+              <h4 className="text-white text-xs font-bold mb-1">Meditações Exclusivas do Plano Plus</h4>
+              <p className="text-zinc-400 text-[10px] mb-3 max-w-xs leading-relaxed">
+                Gere estudos e reflexões bíblicas guiadas por Inteligência Artificial assinando o **Plano Plus**.
+              </p>
+              <div className="flex gap-2 w-full">
+                <button
+                  onClick={onGoHome}
+                  className="flex-1 bg-white/5 hover:bg-white/10 text-white font-sans font-bold py-2.5 rounded-full transition-colors text-[10px] uppercase tracking-wider cursor-pointer"
+                >
+                  Voltar
+                </button>
+                <button
+                  onClick={onGoToUpgrade}
+                  className="flex-1 bg-primary-orange hover:bg-primary-orange-hover text-white font-sans font-bold py-2.5 rounded-full transition-colors text-[10px] uppercase tracking-wider cursor-pointer"
+                >
+                  Assinar R$ 17,90
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <button
+                onClick={onGoHome}
+                className="flex-1 bg-white/5 hover:bg-white/10 text-white font-sans font-bold py-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider focus-ring cursor-pointer"
+              >
+                {t('backHome')}
+              </button>
+              <button
+                onClick={handleMeditar}
+                className="flex-[2] bg-primary-orange text-white font-sans font-bold py-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider hover:bg-primary-orange-hover focus-ring cursor-pointer"
+              >
+                <Bot size={20} />
+                {t('meditateBtn')}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1044,7 +1296,17 @@ export function DesafioView({ onGoHome }: { onGoHome?: () => void }) {
   );
 }
 
-export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
+export function ShemaView({
+  onGoHome,
+  subscriptionStatus = "inactive",
+  trialDaysLeft = null,
+  onGoToUpgrade,
+}: {
+  onGoHome?: () => void;
+  subscriptionStatus?: "inactive" | "active" | "premium";
+  trialDaysLeft?: number | null;
+  onGoToUpgrade?: () => void;
+}) {
   const { t, language } = useLanguage();
   const [messages, setMessages] = useState<{ role: string; text: string }[]>([
     {
@@ -1057,6 +1319,10 @@ export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
   const [hasReceivedResponse, setHasReceivedResponse] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const isPremiumUser = subscriptionStatus === "active" || subscriptionStatus === "premium";
+  const hasActiveTrial = trialDaysLeft !== null && trialDaysLeft > 0;
+  const isLocked = !isPremiumUser && !hasActiveTrial;
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -1066,6 +1332,7 @@ export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
   }, [messages]);
 
   const handleSend = async () => {
+    if (isLocked) return;
     if (!input.trim()) return;
 
     const userMsg = input.trim();
@@ -1174,9 +1441,31 @@ export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
       </div>
 
       {/* Input Area / Go Home */}
-      <div className="pt-3 border-t border-white/5 flex gap-2">
-        {!hasReceivedResponse ? (
-          <>
+      <div className="pt-3 border-t border-white/5">
+        {isLocked ? (
+          <div className="p-5 bg-neutral-card rounded-2xl border border-white/10 text-center flex flex-col items-center">
+            <span className="text-xl mb-1">🔒</span>
+            <h4 className="text-white text-xs font-bold mb-1">Acesso Bloqueado — Teste Expirado</h4>
+            <p className="text-zinc-400 text-[10px] mb-4 max-w-sm leading-relaxed font-medium">
+              Seus 7 dias gratuitos terminaram. Assine o **Plano Plus** por apenas **R$ 17,90/mês** para continuar sua conversa espiritual com o conselheiro AI!
+            </p>
+            <div className="flex gap-2 w-full">
+              <button
+                onClick={onGoHome}
+                className="flex-1 bg-white/5 hover:bg-white/10 text-white font-sans font-bold py-2.5 rounded-full transition-colors text-[10px] uppercase tracking-wider cursor-pointer"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={onGoToUpgrade}
+                className="flex-1 bg-primary-orange hover:bg-primary-orange-hover text-white font-sans font-bold py-2.5 rounded-full transition-colors text-[10px] uppercase tracking-wider cursor-pointer font-bold"
+              >
+                Assinar R$ 17,90
+              </button>
+            </div>
+          </div>
+        ) : !hasReceivedResponse ? (
+          <div className="flex gap-2">
             <input
               type="text"
               value={input}
@@ -1196,7 +1485,7 @@ export function ShemaView({ onGoHome }: { onGoHome?: () => void }) {
                 className="translate-x-[-1px] translate-y-[1px]"
               />
             </button>
-          </>
+          </div>
         ) : (
           <button
             onClick={onGoHome}
@@ -1214,15 +1503,22 @@ export function ProfileView({
   onGoHome,
   onGoAdmin,
   onGoToStore,
+  onGoToUpgrade,
   hideBackButton = false,
+  subscriptionStatus = "inactive",
+  trialDaysLeft = null,
 }: {
   onGoHome?: () => void;
   onGoAdmin?: () => void;
   onGoToStore?: () => void;
+  onGoToUpgrade?: () => void;
   hideBackButton?: boolean;
+  subscriptionStatus?: "inactive" | "active" | "premium";
+  trialDaysLeft?: number | null;
 }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const { t, language, setLanguage } = useLanguage();
+  const [showLanguageLock, setShowLanguageLock] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -1234,6 +1530,20 @@ export function ProfileView({
   const handleLogout = async () => {
     await signOut(auth);
     if (onGoHome) onGoHome();
+  };
+
+  const getPlanLabel = () => {
+    if (subscriptionStatus === "premium") return "Plano Premium 🌟";
+    if (subscriptionStatus === "active") return "Plano Plus ✨";
+    if (trialDaysLeft !== null && trialDaysLeft > 0) return "Plano Gratuito (Em Teste)";
+    return "Plano Gratuito (Expirado)";
+  };
+
+  const getPlanColorClass = () => {
+    if (subscriptionStatus === "premium") return "text-[#FFD700]";
+    if (subscriptionStatus === "active") return "text-[#00E5FF]";
+    if (trialDaysLeft !== null && trialDaysLeft > 0) return "text-[#00D1A0]";
+    return "text-red-400";
   };
 
   return (
@@ -1261,18 +1571,54 @@ export function ProfileView({
           <User size={32} />
         </div>
         <p className="text-white font-bold mb-1">{currentUser?.email}</p>
-        <p className="text-[#00D1A0] text-xs font-bold uppercase tracking-widest mb-6">
-          Plano Gratuito
+        <p className={`text-xs font-bold uppercase tracking-widest mb-6 ${getPlanColorClass()}`}>
+          {getPlanLabel()}
         </p>
 
         <div className="w-full bg-[#111] border border-white/5 rounded-xl p-4 mb-6">
           <p className="text-gray-400 text-[11px] uppercase tracking-widest font-bold mb-2">
             Sua Assinatura
           </p>
-          <p className="text-gray-300 text-sm leading-relaxed">
-            Assinaturas premium não estão ativas no momento. Você será
-            notificado quando lançarmos nossa plataforma pro!
-          </p>
+          {subscriptionStatus === "premium" && (
+            <p className="text-zinc-300 text-sm leading-relaxed">
+              Você está no **Plano Premium**. Todos os recursos de meditação, inteligência Shemá e o Clube de Descontos da loja estão ativos em sua conta.
+            </p>
+          )}
+          {subscriptionStatus === "active" && (
+            <p className="text-zinc-300 text-sm leading-relaxed">
+              Você está no **Plano Plus**. Todo o conteúdo espiritual de devocionais diários, meditações e o Shemá AI estão 100% liberados.
+            </p>
+          )}
+          {subscriptionStatus === "inactive" && trialDaysLeft !== null && trialDaysLeft > 0 && (
+            <div>
+              <p className="text-zinc-300 text-sm leading-relaxed mb-3">
+                Você está no período de teste de **7 dias grátis**. Restam **{trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'}**. Aproveite para testar todo o conteúdo!
+              </p>
+              {onGoToUpgrade && (
+                <button
+                  onClick={onGoToUpgrade}
+                  className="w-full bg-[#FF5A00]/20 border border-[#FF5A00]/40 text-[#FF5A00] hover:bg-[#FF5A00] hover:text-white font-bold py-2 rounded-lg text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Garantir Assinatura
+                </button>
+              )}
+            </div>
+          )}
+          {subscriptionStatus === "inactive" && (trialDaysLeft === null || trialDaysLeft <= 0) && (
+            <div>
+              <p className="text-zinc-300 text-sm leading-relaxed mb-3">
+                Seu período de teste grátis terminou. Assine o Plano Plus ou Premium para liberar os recursos fechados.
+              </p>
+              {onGoToUpgrade && (
+                <button
+                  onClick={onGoToUpgrade}
+                  className="w-full bg-primary-orange hover:bg-primary-orange-hover text-white font-bold py-2.5 rounded-lg text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Assinar Plano
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="w-full bg-[#111] border border-white/5 rounded-xl p-4 mb-6">
@@ -1283,13 +1629,35 @@ export function ProfileView({
             {(["pt", "en", "es"] as Language[]).map((lang) => (
               <button
                 key={lang}
-                onClick={() => setLanguage(lang)}
+                onClick={() => {
+                  if (lang !== "pt" && subscriptionStatus !== "premium") {
+                    setShowLanguageLock(true);
+                  } else {
+                    setShowLanguageLock(false);
+                    setLanguage(lang);
+                  }
+                }}
                 className={`flex-1 py-2 rounded-lg text-sm font-bold uppercase ${language === lang ? "bg-[#00D1A0] text-black" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
               >
                 {lang}
               </button>
             ))}
           </div>
+          {showLanguageLock && (
+            <div className="w-full mt-3 p-4 bg-yellow-950/20 border border-yellow-600/30 rounded-xl text-center animate-in fade-in slide-in-from-top-2 duration-300">
+              <span className="text-xl mb-1 block">🌎</span>
+              <p className="text-white text-xs font-bold mb-1">Modo Multilíngue Exclusivo</p>
+              <p className="text-zinc-400 text-[10px] mb-3 leading-relaxed">
+                Alternar para Inglês e Espanhol é um recurso exclusivo do **Plano Premium**. Aprofunde sua fé em outros idiomas!
+              </p>
+              <button
+                onClick={onGoToUpgrade}
+                className="w-full bg-[#FFD700] hover:bg-[#E6C200] text-black font-bold py-2 rounded-lg text-[10px] uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Fazer Upgrade para Premium
+              </button>
+            </div>
+          )}
         </div>
 
         {onGoToStore && (
@@ -1326,6 +1694,7 @@ export function LandingView({ onGoToStore }: { onGoToStore?: () => void }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -1396,8 +1765,11 @@ export function LandingView({ onGoToStore }: { onGoToStore?: () => void }) {
 
   return (
     <div className="flex flex-col min-h-full px-6 py-12 justify-center">
-      <div className="text-center mb-10">
-        <h1 className="font-serif font-bold text-3xl mb-2 tracking-tight">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#FF5A00]/10 text-[#FF5A00] mb-4 border border-[#FF5A00]/20 animate-pulse">
+          <Heart size={32} fill="currentColor" className="opacity-90" />
+        </div>
+        <h1 className="font-serif font-bold text-3xl mb-2 tracking-tight text-white">
           {t("mainTitle")}
         </h1>
         <p className="font-sans italic text-gray-400 text-sm font-medium">
@@ -1409,39 +1781,45 @@ export function LandingView({ onGoToStore }: { onGoToStore?: () => void }) {
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#FF5A00] to-transparent" />
 
         {errorMsg && (
-          <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-4 text-center mb-6">
-            <p className="text-red-400 text-[13px] leading-relaxed">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center mb-6 animate-in fade-in duration-300">
+            <p className="text-red-400 text-[13px] leading-relaxed font-medium">
               {errorMsg}
             </p>
           </div>
         )}
 
         {resetSent && (
-          <div className="bg-[#00D1A0]/10 border border-[#00D1A0]/50 rounded-xl p-4 text-center mb-6">
-            <p className="text-[#00D1A0] text-[13px] leading-relaxed">
+          <div className="bg-[#00D1A0]/10 border border-[#00D1A0]/30 rounded-xl p-4 text-center mb-6 animate-in fade-in duration-300">
+            <p className="text-[#00D1A0] text-[13px] leading-relaxed font-medium">
               {t("resetSent")}
             </p>
           </div>
         )}
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        <form onSubmit={handleAuth} className="space-y-5">
           {!isLogin && (
-            <div className="animate-in fade-in duration-300">
-              <label className="text-gray-400 text-[11px] uppercase tracking-widest font-bold mb-1 block">
+            <div className="animate-in slide-in-from-top-2 duration-300">
+              <label className="text-gray-400 text-[11px] uppercase tracking-widest font-bold mb-1.5 block">
                 Nome Completo
               </label>
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#FF5A00] transition-colors"
-                placeholder="Seu nome"
-              />
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500">
+                  <User size={16} />
+                </span>
+                <input
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full bg-[#111] border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white text-sm focus:outline-none focus:border-[#FF5A00] focus:ring-1 focus:ring-[#FF5A00] transition-all duration-200 placeholder-gray-600"
+                  placeholder="Seu nome completo"
+                />
+              </div>
             </div>
           )}
+          
           <div>
-            <label className="text-gray-400 text-[11px] uppercase tracking-widest font-bold mb-1 block">
+            <label className="text-gray-400 text-[11px] uppercase tracking-widest font-bold mb-1.5 block">
               Email
             </label>
             <input
@@ -1449,12 +1827,13 @@ export function LandingView({ onGoToStore }: { onGoToStore?: () => void }) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#FF5A00] transition-colors"
+              className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#FF5A00] focus:ring-1 focus:ring-[#FF5A00] transition-all duration-200 placeholder-gray-600"
               placeholder="seu@email.com"
             />
           </div>
+
           <div>
-            <div className="flex justify-between items-center mb-1">
+            <div className="flex justify-between items-center mb-1.5">
               <label className="text-gray-400 text-[11px] uppercase tracking-widest font-bold block">
                 {t("passwordLabel")}
               </label>
@@ -1462,26 +1841,36 @@ export function LandingView({ onGoToStore }: { onGoToStore?: () => void }) {
                 <button
                   type="button"
                   onClick={handleResetPassword}
-                  className="text-[#FF5A00] text-[11px] hover:underline"
+                  className="text-[#FF5A00] text-[11px] hover:underline transition-colors"
                 >
                   {t("forgotPassword")}
                 </button>
               )}
             </div>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#FF5A00] transition-colors"
-              placeholder="••••••"
-            />
+            
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-[#111] border border-white/10 rounded-xl pl-4 pr-10 py-3 text-white text-sm focus:outline-none focus:border-[#FF5A00] focus:ring-1 focus:ring-[#FF5A00] transition-all duration-200 placeholder-gray-600"
+                placeholder="••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#FF5A00] text-white font-sans font-bold py-3.5 rounded-full transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider hover:bg-[#E04D00] mt-4 disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-[#FF5A00] to-[#E04D00] text-white font-sans font-bold py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm uppercase tracking-wider hover:opacity-90 active:scale-95 shadow-lg shadow-[#FF5A00]/20 mt-6 disabled:opacity-50 disabled:pointer-events-none"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : null}
             {isLogin ? t("loginBtn") : t("createAccountBtn")}
@@ -1493,8 +1882,9 @@ export function LandingView({ onGoToStore }: { onGoToStore?: () => void }) {
             onClick={() => {
               setIsLogin(!isLogin);
               setErrorMsg("");
+              setShowPassword(false);
             }}
-            className="text-gray-400 text-[13px] hover:text-white transition-colors"
+            className="text-gray-400 text-[13px] hover:text-white transition-all font-medium"
           >
             {isLogin ? t("registerBtn") : t("backToLogin")}
           </button>
@@ -1505,7 +1895,7 @@ export function LandingView({ onGoToStore }: { onGoToStore?: () => void }) {
         <p className="text-gray-500 text-xs mb-3">Conheça nossos recursos</p>
         <button
           onClick={onGoToStore}
-          className="w-full bg-white/5 text-gray-300 font-sans font-bold py-3.5 rounded-full transition-colors flex items-center justify-center gap-2 text-[11px] border border-white/10 uppercase tracking-widest hover:bg-white/10 hover:text-white"
+          className="w-full bg-white/5 text-gray-300 font-sans font-bold py-3.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-[11px] border border-white/10 uppercase tracking-widest hover:bg-white/10 hover:text-white"
         >
           <ShoppingBag size={16} className="text-[#FF5A00]" /> {t("visitStore")}
         </button>

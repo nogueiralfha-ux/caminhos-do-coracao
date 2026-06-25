@@ -73,7 +73,22 @@ export function AdminView({
       return;
     }
 
-    const finalImage = processImageUrl(formData.image);
+    let finalImage = formData.image.trim();
+    if (finalImage.includes('ibb.co/') && !finalImage.includes('i.ibb.co')) {
+      try {
+        const res = await fetch("/api/admin/process-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: finalImage })
+        });
+        const data = await res.json();
+        if (data.directUrl) {
+          finalImage = data.directUrl;
+        }
+      } catch (err) {
+        console.error("Error converting image link:", err);
+      }
+    }
 
     try {
       if (editingId === 'new') {

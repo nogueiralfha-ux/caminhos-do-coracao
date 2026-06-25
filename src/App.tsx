@@ -22,8 +22,9 @@ import {
   LandingView,
 } from "./components/Views";
 import { AdminView } from "./components/AdminView";
-import { auth } from "./lib/firebase";
+import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
 import { useLanguage } from "./i18n/Context";
 
 export default function App() {
@@ -33,6 +34,10 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  
+  // Estados de Assinatura e Trial
+  const [subscriptionStatus, setSubscriptionStatus] = useState<"inactive" | "active" | "premium">("inactive");
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
 
   const navItems = [
     { id: "home", label: t("navHome"), icon: Home },
@@ -43,8 +48,40 @@ export default function App() {
   ];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    let unsubscribeProfile = () => {};
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      if (u) {
+        // Escutar perfil no Firestore
+        const docRef = doc(db, "users", u.uid);
+        unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setSubscriptionStatus(data.subscriptionStatus || "inactive");
+            
+            // Calcular dias de teste (trial) restantes de forma precisa
+            if (data.createdAt) {
+              const createdDate = data.createdAt.toDate 
+                ? data.createdAt.toDate() 
+                : new Date(data.createdAt);
+              const diffTime = Math.max(0, new Date().getTime() - createdDate.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              const daysLeft = Math.max(0, 7 - (diffDays - 1)); // 7 dias de trial
+              setTrialDaysLeft(daysLeft);
+            } else {
+              setTrialDaysLeft(7);
+            }
+          } else {
+            setSubscriptionStatus("inactive");
+            setTrialDaysLeft(7);
+          }
+        });
+      } else {
+        setSubscriptionStatus("inactive");
+        setTrialDaysLeft(null);
+        unsubscribeProfile();
+      }
       setAuthLoading(false);
     });
 
@@ -60,7 +97,8 @@ export default function App() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
 
     return () => {
-      unsubscribe();
+      unsubscribeAuth();
+      unsubscribeProfile();
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
@@ -124,38 +162,95 @@ export default function App() {
   const renderView = () => {
     switch (activeTab) {
       case "devocional":
-        return <DevocionalView onGoHome={() => setActiveTab("home")} />;
+        return <DevocionalView onGoHome={() => setActiveTab("home")} subscriptionStatus={subscriptionStatus} trialDaysLeft={trialDaysLeft} onGoToUpgrade={() => setActiveTab("apoio")} />;
       case "leitura":
-        return <LeituraView onGoHome={() => setActiveTab("home")} />;
+        return <LeituraView onGoHome={() => setActiveTab("home")} subscriptionStatus={subscriptionStatus} trialDaysLeft={trialDaysLeft} onGoToUpgrade={() => setActiveTab("apoio")} />;
       case "desafio":
         return <DesafioView onGoHome={() => setActiveTab("home")} />;
       case "shema":
-        return <ShemaView onGoHome={() => setActiveTab("home")} />;
+        return <ShemaView onGoHome={() => setActiveTab("home")} subscriptionStatus={subscriptionStatus} trialDaysLeft={trialDaysLeft} onGoToUpgrade={() => setActiveTab("apoio")} />;
       case "apoio":
         return (
           <ApoioView
             onGoHome={() => setActiveTab("home")}
             onGoToStore={() => setActiveTab("loja")}
             hideBackButton={true}
+            subscriptionStatus={subscriptionStatus}
           />
         );
       case "loja":
-        return <LojaView onGoHome={() => setActiveTab("home")} hideBackButton={true} />;
+        return <LojaView onGoHome={() => setActiveTab("home")} hideBackButton={true} subscriptionStatus={subscriptionStatus} />;
       case "perfil":
         return (
           <ProfileView
             onGoHome={() => setActiveTab("home")}
             onGoAdmin={() => setActiveTab("admin")}
             onGoToStore={() => setActiveTab("loja")}
+            onGoToUpgrade={() => setActiveTab("apoio")}
             hideBackButton={true}
+            subscriptionStatus={subscriptionStatus}
+            trialDaysLeft={trialDaysLeft}
           />
         );
       case "admin":
-        return <AdminView onGoHome={() => setActiveTab("home")} hideBackButton={true} />;
+        if (user?.email === "nogueiralfha@gmail.com") {
+          return <AdminView onGoHome={() => setActiveTab("home")} hideBackButton={true} />;
+        }
+        return (
+          <div className="text-center text-white py-20 font-serif flex flex-col items-center justify-center gap-4 animate-in fade-in duration-300">
+            <span className="text-4xl">🔒</span>
+            <p className="text-sm font-sans text-gray-400">Acesso restrito ao administrador.</p>
+            <button 
+              onClick={() => setActiveTab("home")} 
+              className="bg-[#FF5A00] px-6 py-2.5 rounded-full font-sans font-bold text-xs uppercase tracking-wider text-white hover:opacity-90 transition-opacity cursor-pointer"
+            >
+              Voltar ao Início
+            </button>
+          </div>
+        );
       case "home":
       default:
         return (
           <div className="animate-in fade-in duration-500">
+            {/* Trial Banner */}
+            {trialDaysLeft !== null && trialDaysLeft > 0 && subscriptionStatus === "inactive" && (
+              <div className="mb-6 p-4 rounded-[20px] bg-gradient-to-r from-primary-orange/20 to-primary-gold/15 border border-primary-orange/30 flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-serif font-bold text-sm text-white flex items-center gap-1.5">
+                    <span className="animate-pulse">✨</span> Teste Grátis de 7 Dias
+                  </h3>
+                  <p className="text-[11px] text-zinc-300 mt-1">
+                    Você tem mais <strong>{trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'}</strong> de acesso livre e gratuito a todos os recursos.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab("apoio")}
+                  className="bg-[#FF5A00] hover:bg-[#E04D00] text-white text-[10px] font-bold py-2 px-3.5 rounded-full transition-all active:scale-95 whitespace-nowrap cursor-pointer shrink-0"
+                >
+                  Ver Planos
+                </button>
+              </div>
+            )}
+            
+            {trialDaysLeft !== null && trialDaysLeft <= 0 && subscriptionStatus === "inactive" && (
+              <div className="mb-6 p-4 rounded-[20px] bg-red-950/20 border border-red-500/30 flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-serif font-bold text-sm text-white flex items-center gap-1.5">
+                    🔒 Teste Grátis Expirado
+                  </h3>
+                  <p className="text-[11px] text-zinc-300 mt-1">
+                    Seus 7 dias gratuitos acabaram. Garanta seu plano para liberar as meditações diárias e o conselheiro!
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab("apoio")}
+                  className="bg-[#FF5A00] hover:bg-[#E04D00] text-white text-[10px] font-bold py-2 px-3.5 rounded-full transition-all active:scale-95 whitespace-nowrap cursor-pointer shrink-0"
+                >
+                  Assinar
+                </button>
+              </div>
+            )}
+
             {/* Grid of Cards */}
             <div className="grid grid-cols-2 gap-4 mb-10">
               {cards.map((card) => (
