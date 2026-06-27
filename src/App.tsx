@@ -57,6 +57,11 @@ export default function App() {
         // Escutar perfil no Firestore
         const docRef = doc(db, "users", u.uid);
         unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
+          if (u.email === "nogueiralfha@gmail.com") {
+            setSubscriptionStatus("premium");
+            setTrialDaysLeft(null);
+            return;
+          }
           if (docSnap.exists()) {
             const data = docSnap.data();
             setSubscriptionStatus(data.subscriptionStatus || "inactive");
