@@ -137,10 +137,11 @@ Contexto do aplicativo que você pode usar: ${JSON.stringify(localDatabase)}.`;
     console.error("[ERROR] Falha ao carregar devocionais.json:", error);
   }
 
-  // Helper to translate text using Gemini (or fallback dictionary)
+  // Helper to translate text using Gemini, Google Translate (free), or fallback
   async function translateText(text: string, targetLang: string): Promise<string> {
     if (!targetLang || targetLang === "pt") return text;
     
+    // 1. Try Gemini first if key is available
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
       try {
@@ -160,11 +161,26 @@ ${text}`;
           return response.text.trim();
         }
       } catch (error) {
-        console.error("Gemini translation error:", error);
+        console.error("Gemini translation error, falling back to Google Translate:", error);
       }
     }
 
-    // Fallback static translation if Gemini API key is missing
+    // 2. Try Free Google Translate API
+    try {
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data && data[0]) {
+        const translated = data[0].map((item: any) => item[0]).join("");
+        if (translated) {
+          return translated;
+        }
+      }
+    } catch (error) {
+      console.error("Google Translate free API error:", error);
+    }
+
+    // 3. Fallback static translation if both options fail
     if (targetLang === "en") {
       return text
         .replace(/📖 \*\*Meditação sobre/g, "📖 **Meditation on")
@@ -188,7 +204,7 @@ ${text}`;
         .replace(/✨ \*\*Tema do Texto:\*\*/g, "✨ **Tema del Texto:**")
         .replace(/✨ \*\*Introdução:\*\*/g, "✨ **Introducción:**")
         .replace(/✨ \*\*Contexto Atual & Aplicação:\*\*/g, "✨ **Contexto Actual y Aplicación:**")
-        .replace(/🙏 \*\*Oração Final:\*\*/g, "🙏 **Oración Final:**")
+        .replace(/🙏 \*\*Oração Final:\*\*/g, "✨ **Oración Final:**")
         .replace(/Que o Senhor te fortaleça e abençoe os seus passos hoje\. Amém\./g, "Que el Señor te fortalezca y bendiga tus pasos hoy. Amén.")
         .replace(/✨ \*Shalom! Que a graça e a paz de nosso Senhor Jesus Cristo estejam com você\.\*/g, "✨ *Shalom! Que la gracia y la paz de nuestro Señor Jesuscristo estén contigo.*")
         .replace(/Sinto muito por você estar passando por isso\. Saiba que seu desabafo foi ouvido e que você está sob o cuidado e o amor do Pai\. Ao refletir sobre a sua situação, o Espírito Santo nos direciona a esta preciosa palavra:/g, "Lamento mucho que estés pasando por esto. Sabes que tu desahogo ha sido escuchado y que estás bajo el cuidado y amor del Padre. Al reflexionar sobre tu situación, el Espíritu Santo nos dirige a esta preciosa palabra:")
