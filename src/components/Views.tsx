@@ -79,7 +79,7 @@ export function DevocionalView({
   const index = (dayOfYear - 1) % db.devocionais.length;
   const item = db.devocionais[index >= 0 ? index : 0];
 
-  const isPremiumUser = subscriptionStatus === "active" || subscriptionStatus === "premium";
+  const isPremiumUser = subscriptionStatus === "active" || subscriptionStatus === "premium" || auth.currentUser?.email?.toLowerCase().trim() === "nogueiralfha@gmail.com";
   const hasActiveTrial = trialDaysLeft !== null && trialDaysLeft > 0;
   const isLocked = !isPremiumUser && !hasActiveTrial;
 
@@ -1260,7 +1260,7 @@ export function LeituraView({
   const index = (dayOfYear - 1) % db.leituras.length;
   const leituraDoDia = db.leituras[index >= 0 ? index : 0];
 
-  const isPremiumUser = subscriptionStatus === "active" || subscriptionStatus === "premium";
+  const isPremiumUser = subscriptionStatus === "active" || subscriptionStatus === "premium" || auth.currentUser?.email?.toLowerCase().trim() === "nogueiralfha@gmail.com";
   const hasActiveTrial = trialDaysLeft !== null && trialDaysLeft > 0;
   const isLocked = !isPremiumUser && !hasActiveTrial;
 
@@ -1555,7 +1555,7 @@ export function ShemaView({
   const [hasReceivedResponse, setHasReceivedResponse] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const isPremiumUser = subscriptionStatus === "active" || subscriptionStatus === "premium";
+  const isPremiumUser = subscriptionStatus === "active" || subscriptionStatus === "premium" || auth.currentUser?.email?.toLowerCase().trim() === "nogueiralfha@gmail.com";
   const hasActiveTrial = trialDaysLeft !== null && trialDaysLeft > 0;
   const isLocked = !isPremiumUser && !hasActiveTrial;
 
@@ -1905,7 +1905,7 @@ export function ProfileView({
           </button>
         )}
 
-        {onGoAdmin && currentUser?.email === "nogueiralfha@gmail.com" && (
+        {onGoAdmin && currentUser?.email && currentUser.email.toLowerCase().trim() === "nogueiralfha@gmail.com" && (
           <button
             onClick={onGoAdmin}
             className="w-full bg-[#FF5A00]/10 text-[#FF5A00] font-sans font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm uppercase tracking-wider hover:bg-[#FF5A00]/20 mb-4"

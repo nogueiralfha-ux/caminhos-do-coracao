@@ -54,14 +54,14 @@ export default function App() {
     const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) {
+        if (u.email && u.email.toLowerCase().trim() === "nogueiralfha@gmail.com") {
+          setSubscriptionStatus("premium");
+          setTrialDaysLeft(null);
+          return;
+        }
         // Escutar perfil no Firestore
         const docRef = doc(db, "users", u.uid);
         unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
-          if (u.email === "nogueiralfha@gmail.com") {
-            setSubscriptionStatus("premium");
-            setTrialDaysLeft(null);
-            return;
-          }
           if (docSnap.exists()) {
             const data = docSnap.data();
             setSubscriptionStatus(data.subscriptionStatus || "inactive");
@@ -205,7 +205,7 @@ export default function App() {
           />
         );
       case "admin":
-        if (user?.email === "nogueiralfha@gmail.com") {
+        if (user?.email && user.email.toLowerCase().trim() === "nogueiralfha@gmail.com") {
           return <AdminView onGoHome={() => setActiveTab("home")} hideBackButton={true} />;
         }
         return (
