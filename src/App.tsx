@@ -57,6 +57,7 @@ export default function App() {
         if (u.email && u.email.toLowerCase().trim() === "nogueiralfha@gmail.com") {
           setSubscriptionStatus("premium");
           setTrialDaysLeft(null);
+          setAuthLoading(false);
           return;
         }
         // Escutar perfil no Firestore
