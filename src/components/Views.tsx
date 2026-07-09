@@ -1288,6 +1288,7 @@ export function LeituraView({
           book: leituraDoDia.book,
           chapter: leituraDoDia.chapter,
           content: leituraDoDia.content,
+          language: language,
         }),
       });
       const data = await res.json();
@@ -1586,7 +1587,7 @@ export function ShemaView({
       const res = await fetch("/api/shema/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg, history }),
+        body: JSON.stringify({ message: userMsg, history, language: language }),
       });
 
       const data = await res.json();

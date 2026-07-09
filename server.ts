@@ -137,10 +137,74 @@ Contexto do aplicativo que você pode usar: ${JSON.stringify(localDatabase)}.`;
     console.error("[ERROR] Falha ao carregar devocionais.json:", error);
   }
 
+  // Helper to translate text using Gemini (or fallback dictionary)
+  async function translateText(text: string, targetLang: string): Promise<string> {
+    if (!targetLang || targetLang === "pt") return text;
+    
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+      try {
+        const prompt = `You are a professional translator. Translate the following devotional content into ${targetLang === "en" ? "English" : "Spanish"}.
+Maintain all markdown formatting (bolding, quotes, bullets, emojis) exactly as in the original text.
+Only return the translated text without any intro or outro.
+
+Text to translate:
+${text}`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+        });
+
+        if (response && response.text) {
+          return response.text.trim();
+        }
+      } catch (error) {
+        console.error("Gemini translation error:", error);
+      }
+    }
+
+    // Fallback static translation if Gemini API key is missing
+    if (targetLang === "en") {
+      return text
+        .replace(/📖 \*\*Meditação sobre/g, "📖 **Meditation on")
+        .replace(/\*\(Inspirada no Devocional de Hoje:/g, "*(Inspired by Today's Devotional:")
+        .replace(/✨ \*\*Tema do Texto:\*\*/g, "✨ **Theme of the Text:**")
+        .replace(/✨ \*\*Introdução:\*\*/g, "✨ **Introduction:**")
+        .replace(/✨ \*\*Contexto Atual & Aplicação:\*\*/g, "✨ **Current Context & Application:**")
+        .replace(/🙏 \*\*Oração Final:\*\*/g, "🙏 **Final Prayer:**")
+        .replace(/Que o Senhor te fortaleça e abençoe os seus passos hoje\. Amém\./g, "May the Lord strengthen you and bless your steps today. Amen.")
+        .replace(/✨ \*Shalom! Que a graça e a paz de nosso Senhor Jesus Cristo estejam com você\.\*/g, "✨ *Shalom! May the grace and peace of our Lord Jesus Christ be with you.*")
+        .replace(/Sinto muito por você estar passando por isso\. Saiba que seu desabafo foi ouvido e que você está sob o cuidado e o amor do Pai\. Ao refletir sobre a sua situação, o Espírito Santo nos direciona a esta preciosa palavra:/g, "I am so sorry you are going through this. Know that your heart has been heard and that you are under the Father's care and love. As we reflect on your situation, the Holy Spirit directs us to this precious word:")
+        .replace(/✨ \*\*Palavra de Sabedoria:\*\*/g, "✨ **Word of Wisdom:**")
+        .replace(/🙏 \*\*Oração Final do Conselheiro:\*\*/g, "🙏 **Final Prayer of the Counselor:**")
+        .replace(/Soberano Deus, Pai de amor e misericórdia, eu apresento a vida deste Teu filho\(a\) diante de Ti agora\. Tu conheces as aflições, as lutas silenciosas e o peso que este coração tem carregado\. Derrama o Teu Espírito Consolador sobre ele\(a\)\. Que a verdade divina de que/g, "Sovereign God, Father of love and mercy, I present the life of this child of Yours before You now. You know the afflictions, the silent struggles, and the weight this heart has been carrying. Pour out Your Comforting Spirit upon them. May the divine truth that")
+        .replace(/traga renovo, esperança e paz hoje\. Concede a direção certa, acalma a tempestade e fortaleça a sua fé para seguir adiante, sabendo que o Senhor está no controle\. Em nome de Jesus, amém\./g, "bring renewal, hope, and peace today. Grant the right direction, calm the storm, and strengthen their faith to move forward, knowing that the Lord is in control. In Jesus' name, amen.")
+        .replace(/🌱 \*\*Passo de Fé para Hoje:\*\*/g, "🌱 **Step of Faith for Today:**");
+    } else if (targetLang === "es") {
+      return text
+        .replace(/📖 \*\*Meditação sobre/g, "📖 **Meditación sobre")
+        .replace(/\*\(Inspirada no Devocional de Hoje:/g, "*(Inspirado en el Devocional de Hoy:")
+        .replace(/✨ \*\*Tema do Texto:\*\*/g, "✨ **Tema del Texto:**")
+        .replace(/✨ \*\*Introdução:\*\*/g, "✨ **Introducción:**")
+        .replace(/✨ \*\*Contexto Atual & Aplicação:\*\*/g, "✨ **Contexto Actual y Aplicación:**")
+        .replace(/🙏 \*\*Oração Final:\*\*/g, "🙏 **Oración Final:**")
+        .replace(/Que o Senhor te fortaleça e abençoe os seus passos hoje\. Amém\./g, "Que el Señor te fortalezca y bendiga tus pasos hoy. Amén.")
+        .replace(/✨ \*Shalom! Que a graça e a paz de nosso Senhor Jesus Cristo estejam com você\.\*/g, "✨ *Shalom! Que la gracia y la paz de nuestro Señor Jesuscristo estén contigo.*")
+        .replace(/Sinto muito por você estar passando por isso\. Saiba que seu desabafo foi ouvido e que você está sob o cuidado e o amor do Pai\. Ao refletir sobre a sua situação, o Espírito Santo nos direciona a esta preciosa palavra:/g, "Lamento mucho que estés pasando por esto. Sabes que tu desahogo ha sido escuchado y que estás bajo el cuidado y amor del Padre. Al reflexionar sobre tu situación, el Espíritu Santo nos dirige a esta preciosa palabra:")
+        .replace(/✨ \*\*Palavra de Sabedoria:\*\*/g, "✨ **Palabra de Sabiduría:**")
+        .replace(/🙏 \*\*Oração Final do Conselheiro:\*\*/g, "🙏 **Oración Final del Consejero:**")
+        .replace(/Soberano Deus, Pai de amor e misericórdia, eu apresento a vida deste Teu filho\(a\) diante de Ti agora\. Tu conheces as aflições, as lutas silenciosas e o peso que este coração tem carregado\. Derrama o Teu Espírito Consolador sobre ele\(a\)\. Que a verdade divina de que/g, "Soberano Dios, Padre de amor y misericordia, presento la vida de este hijo(a) Tuyo ante Ti ahora. Tú conoces las aflicciones, las luchas silenciosas y el peso que este corazón ha cargado. Derrama Tu Espíritu Consolador sobre él/ella. Que la verdad divina de que")
+        .replace(/traga renovo, esperança e paz hoje\. Concede a direção certa, acalma a tempestade e fortaleça a sua fé para seguir adiante, sabendo que o Senhor está no controle\. Em nome de Jesus, amém\./g, "traiga renovación, esperanza y paz hoy. Concede la dirección correcta, calma la tormenta y fortalece su fe para seguir adelante, sabiendo que el Señor tiene el control. En el nombre de Jesús, amén.")
+        .replace(/🌱 \*\*Passo de Fé para Hoje:\*\*/g, "🌱 **Paso de Fe para Hoy:**");
+    }
+    return text;
+  }
+
   // API Route for Shemá Counselor
   app.post("/api/shema/chat", async (req, res) => {
     try {
-      const { message } = req.body;
+      const { message, language } = req.body;
       if (!message || typeof message !== "string") {
         return res.status(400).json({ error: "Mensagem inválida." });
       }
@@ -229,10 +293,12 @@ Soberano Deus, Pai de amor e misericórdia, eu apresento a vida deste Teu filho(
 ${bestDevotional.acao}
 _${bestDevotional.aplicacao}_`;
 
-        return res.json({ reply });
+        const translatedReply = await translateText(reply, language);
+        return res.json({ reply: translatedReply });
       }
 
-      res.json({ reply: "Shalom! Como posso te ouvir e orar por você hoje?" });
+      const defaultReply = await translateText("Shalom! Como posso te ouvir e orar por você hoje?", language);
+      res.json({ reply: defaultReply });
     } catch (error: any) {
       console.error("Error in Shema local search:", error);
       res.status(500).json({ error: "Erro ao se comunicar com o conselheiro local." });
@@ -242,7 +308,7 @@ _${bestDevotional.aplicacao}_`;
   // API Route for Leitura Meditation
   app.post("/api/leitura/meditation", async (req, res) => {
     try {
-      const { book, chapter } = req.body;
+      const { book, chapter, language } = req.body;
 
       // Encontra devocional pelo dia do ano atual
       const now = new Date();
@@ -273,10 +339,12 @@ ${bestDevotional.aplicacao}
 *"${bestDevotional.frase}"* 
 Que o Senhor te fortaleça e abençoe os seus passos hoje. Amém.`;
 
-        return res.json({ reflection });
+        const translatedReflection = await translateText(reflection, language);
+        return res.json({ reflection: translatedReflection });
       }
 
-      res.json({ reflection: "Shalom! Que a Palavra do Senhor habite ricamente em seu coração hoje." });
+      const defaultReflection = await translateText("Shalom! Que a Palavra do Senhor habite ricamente em seu coração hoje.", language);
+      res.json({ reflection: defaultReflection });
     } catch (error: any) {
       console.error("Error generating local meditation:", error);
       res.status(500).json({ error: "Erro ao gerar meditação local." });
