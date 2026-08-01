@@ -150,4 +150,74 @@ body {
   }
 }
 
+/* --- ANIMACÕES DA TELA DE SPLASH PREMIUM --- */
+@keyframes drawPathLine {
+  0% {
+    stroke-dashoffset: 600;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes heartPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.2);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseHeart {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(255, 90, 0, 0.3));
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 12px rgba(255, 90, 0, 0.6));
+  }
+}
+
+@keyframes textFadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-draw-path {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: drawPathLine 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-heart-pop {
+  transform: scale(0);
+  opacity: 0;
+  animation: heartPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1.6s forwards, pulseHeart 2s ease-in-out 2.2s infinite;
+}
+
+.animate-text-splash {
+  opacity: 0;
+  animation: textFadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+}
+
+.animate-text-sub-splash {
+  opacity: 0;
+  animation: textFadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+}
+
+
 

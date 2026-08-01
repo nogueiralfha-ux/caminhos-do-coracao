@@ -9,8 +9,12 @@ import {
   User,
   WifiOff,
   Download,
+  Volume2,
+  Play,
+  Square,
+  Music,
 } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   DevocionalView,
   LeituraView,
@@ -27,18 +31,184 @@ import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useLanguage } from "./i18n/Context";
+import { databases } from "./data";
+
 
 export default function App() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState("home");
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    // Mantém a animação de splash na tela por 3.2 segundos
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 3200);
+    return () => clearTimeout(timer);
+  }, []);
   
   // Estados de Assinatura e Trial
   const [subscriptionStatus, setSubscriptionStatus] = useState<"inactive" | "active" | "premium">("inactive");
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
+
+  // --- SISTEMA DE ÁUDIO DE CONVITE DIÁRIO (BEM-VINDO) ---
+  const [isPlayingInvite, setIsPlayingInvite] = useState(false);
+  const [isInviteRealAudio, setIsInviteRealAudio] = useState(true);
+  const inviteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const inviteUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Parar áudio se trocar de aba
+  useEffect(() => {
+    stopInviteAudio();
+  }, [activeTab]);
+
+  // Autoplay do áudio de convite na inicialização / login
+  useEffect(() => {
+    if (user && activeTab === "home") {
+      const hasPlayed = sessionStorage.getItem("welcome_audio_played");
+      if (!hasPlayed) {
+        sessionStorage.setItem("welcome_audio_played", "true");
+        
+        const today = new Date();
+        const start = new Date(today.getFullYear(), 0, 0);
+        const diff = today.getTime() - start.getTime();
+        const oneDay = 1000 * 60 * 60 * 24;
+        const dayOfYear = Math.floor(diff / oneDay);
+        
+        const dbData = databases[language || "pt"] || databases.pt;
+        const devocionalIndex = (dayOfYear - 1) % dbData.devocionais.length;
+        const todayItem = dbData.devocionais[devocionalIndex >= 0 ? devocionalIndex : 0];
+
+        const timer = setTimeout(() => {
+          toggleInviteAudio(todayItem);
+        }, 1200);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user, activeTab, language]);
+
+
+  const stopInviteAudio = () => {
+    if (inviteAudioRef.current) {
+      inviteAudioRef.current.pause();
+      inviteAudioRef.current.currentTime = 0;
+    }
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    inviteUtteranceRef.current = null;
+    setIsPlayingInvite(false);
+  };
+
+  const toggleInviteAudio = (todayItem: any) => {
+    if (isPlayingInvite) {
+      stopInviteAudio();
+      return;
+    }
+
+    // Lista de URLs a tentar em ordem
+    const getAudioUrls = () => [
+      `/audios/apresentacao.mp3`,
+      `/apresentacao.mp3`,
+      `/apresentacao_caminhos_do_coracao.mp3`,
+      `/audios/apresentacao_caminhos_do_coracao.mp3`,
+      `/audios/dia_${todayItem.id}.mp3`,
+      `/audios/dia${todayItem.id}.mp3`,
+      `/audios/${todayItem.id}.mp3`
+    ];
+
+    const audioUrls = getAudioUrls();
+
+    if (!inviteAudioRef.current) {
+      const audioEl = new Audio();
+      inviteAudioRef.current = audioEl;
+      
+      audioEl.onended = () => {
+        setIsPlayingInvite(false);
+      };
+      
+      let currentUrlIndex = 0;
+      audioEl.onerror = () => {
+        currentUrlIndex++;
+        if (currentUrlIndex < audioUrls.length) {
+          console.warn(`Áudio não encontrado em ${audioEl.src}. Tentando próxima rota: ${audioUrls[currentUrlIndex]}`);
+          audioEl.src = audioUrls[currentUrlIndex];
+          audioEl.play().then(() => {
+            setIsPlayingInvite(true);
+            setIsInviteRealAudio(true);
+          }).catch(() => {
+            // Dispara o erro novamente para ir para a próxima tentativa no onerror
+            audioEl.dispatchEvent(new Event('error'));
+          });
+        } else {
+          console.warn("Nenhuma rota de áudio funcionou. Iniciando fallback de voz sintética (TTS)...");
+          runInviteTts(todayItem);
+        }
+      };
+    }
+
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+
+    setIsInviteRealAudio(true);
+    
+    // Iniciar a tentativa de reprodução com a primeira URL da lista
+    const firstUrl = audioUrls[0];
+    inviteAudioRef.current.src = firstUrl;
+    
+    let playAttemptUrlIndex = 0;
+    const playNextAvailable = () => {
+      if (!inviteAudioRef.current) return;
+      inviteAudioRef.current.play()
+        .then(() => {
+          setIsPlayingInvite(true);
+        })
+        .catch((err) => {
+          playAttemptUrlIndex++;
+          if (playAttemptUrlIndex < audioUrls.length) {
+            console.warn(`Erro/Bloqueio ao tocar ${inviteAudioRef.current.src}. Tentando próxima: ${audioUrls[playAttemptUrlIndex]}`);
+            inviteAudioRef.current.src = audioUrls[playAttemptUrlIndex];
+            playNextAvailable();
+          } else {
+            runInviteTts(todayItem);
+          }
+        });
+    };
+
+    playNextAvailable();
+  };
+
+  const runInviteTts = (todayItem: any) => {
+    setIsInviteRealAudio(false);
+    if (!window.speechSynthesis) return;
+
+    window.speechSynthesis.cancel();
+
+    const welcomeText = `Olá! Seja muito bem-vindo ao Caminhos do Coração de hoje. O tema do nosso devocional para este dia é: ${todayItem.title}. ${todayItem.subtitle}. Convido você a clicar no botão abaixo para ler o devocional completo e meditar com a gente.`;
+
+    const utterance = new SpeechSynthesisUtterance(welcomeText);
+    utterance.lang = "pt-BR";
+    utterance.rate = 1.0;
+
+    utterance.onend = () => {
+      setIsPlayingInvite(false);
+      inviteUtteranceRef.current = null;
+    };
+    utterance.onerror = () => {
+      setIsPlayingInvite(false);
+      inviteUtteranceRef.current = null;
+    };
+
+    inviteUtteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+    setIsPlayingInvite(true);
+  };
+
 
   const navItems = [
     { id: "home", label: t("navHome"), icon: Home },
@@ -126,6 +296,16 @@ export default function App() {
     month: "2-digit",
     year: "numeric",
   });
+
+  const start = new Date(today.getFullYear(), 0, 0);
+  const diff = today.getTime() - start.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  const dayOfYear = Math.floor(diff / oneDay);
+
+  const dbData = databases[language || "pt"] || databases.pt;
+  const devocionalIndex = (dayOfYear - 1) % dbData.devocionais.length;
+  const todayDevocional = dbData.devocionais[devocionalIndex >= 0 ? devocionalIndex : 0];
+
 
   const cards = [
     {
@@ -372,11 +552,30 @@ export default function App() {
     );
   };
 
-  if (authLoading) {
+  if (authLoading || showSplash) {
     return renderAppContainer(
-      <div className="flex-1 bg-neutral-dark flex items-center justify-center text-white font-sans animate-pulse">
-        {t("loading")}
-      </div>
+      <div className="flex-1 bg-neutral-darker flex flex-col items-center justify-center text-white px-6 relative overflow-hidden select-none">
+        {/* Glowing Background Light */}
+        <div className="absolute w-[200px] h-[200px] bg-primary-orange/10 rounded-full blur-[100px] pointer-events-none" />
+        
+        {/* 1. App Title (Fades in first) */}
+        <h1 className="font-serif font-bold text-3xl tracking-tight text-white mb-2 animate-text-splash text-center">
+          {t("mainTitle")}
+        </h1>
+        <p className="font-sans italic text-zinc-400 text-xs font-semibold tracking-wider uppercase opacity-75 animate-text-sub-splash text-center mb-12">
+          {t("mainSubtitle")}
+        </p>
+
+        {/* 2. Heart Logo (Official App Icon containing the heart and path) */}
+        <div className="relative w-32 h-32 flex items-center justify-center animate-heart-pop">
+          <img 
+            src="/icon-192.png" 
+            alt="Logo Caminhos do Coração" 
+            className="w-full h-full object-contain rounded-2xl shadow-lg border border-white/5"
+          />
+        </div>
+      </div>,
+      true
     );
   }
 
@@ -413,6 +612,16 @@ export default function App() {
             <ChevronLeft size={24} />
           </button>
         )}
+        {/* Floating Play/Pause toggle for background daily welcome audio */}
+        <button
+          onClick={() => toggleInviteAudio(todayDevocional)}
+          className={`absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors cursor-pointer focus-ring flex items-center justify-center ${
+            isPlayingInvite ? "text-primary-orange animate-pulse" : "text-zinc-500 hover:text-white"
+          }`}
+          title={isPlayingInvite ? "Pausar convite de áudio" : "Ouvir convite de áudio"}
+        >
+          {isPlayingInvite ? <Volume2 size={22} /> : <Play size={22} />}
+        </button>
         <h1
           className="font-serif font-bold text-2xl tracking-tight cursor-pointer hover:opacity-80 active:scale-[0.98] transition-all"
           onClick={() => setActiveTab("home")}
