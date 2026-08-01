@@ -99,7 +99,9 @@ export default function App() {
     }
 
     const audioUrls = [
+      `/apresentacao.mp4`,
       `/apresentacao.mp3`,
+      `/audios/apresentacao.mp4`,
       `/audios/apresentacao.mp3`,
       `/apresentacao_caminhos_do_coracao.mp3`,
       `/audios/apresentacao_caminhos_do_coracao.mp3`
