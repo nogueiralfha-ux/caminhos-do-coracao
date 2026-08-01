@@ -66,30 +66,18 @@ export default function App() {
     stopInviteAudio();
   }, [activeTab]);
 
-  // Autoplay do áudio de convite na inicialização / login
+  // Autoplay do áudio de convite na inicialização (durante a tela de splash)
   useEffect(() => {
-    if (user && activeTab === "home") {
-      const hasPlayed = sessionStorage.getItem("welcome_audio_played");
-      if (!hasPlayed) {
-        sessionStorage.setItem("welcome_audio_played", "true");
-        
-        const today = new Date();
-        const start = new Date(today.getFullYear(), 0, 0);
-        const diff = today.getTime() - start.getTime();
-        const oneDay = 1000 * 60 * 60 * 24;
-        const dayOfYear = Math.floor(diff / oneDay);
-        
-        const dbData = databases[language || "pt"] || databases.pt;
-        const devocionalIndex = (dayOfYear - 1) % dbData.devocionais.length;
-        const todayItem = dbData.devocionais[devocionalIndex >= 0 ? devocionalIndex : 0];
-
-        const timer = setTimeout(() => {
-          toggleInviteAudio(todayItem);
-        }, 1200);
-        return () => clearTimeout(timer);
-      }
+    const hasPlayed = sessionStorage.getItem("welcome_audio_played");
+    if (!hasPlayed) {
+      sessionStorage.setItem("welcome_audio_played", "true");
+      
+      const timer = setTimeout(() => {
+        toggleInviteAudio();
+      }, 800);
+      return () => clearTimeout(timer);
     }
-  }, [user, activeTab, language]);
+  }, []);
 
 
   const stopInviteAudio = () => {
@@ -104,24 +92,18 @@ export default function App() {
     setIsPlayingInvite(false);
   };
 
-  const toggleInviteAudio = (todayItem: any) => {
+  const toggleInviteAudio = () => {
     if (isPlayingInvite) {
       stopInviteAudio();
       return;
     }
 
-    // Lista de URLs a tentar em ordem
-    const getAudioUrls = () => [
-      `/audios/apresentacao.mp3`,
+    const audioUrls = [
       `/apresentacao.mp3`,
+      `/audios/apresentacao.mp3`,
       `/apresentacao_caminhos_do_coracao.mp3`,
-      `/audios/apresentacao_caminhos_do_coracao.mp3`,
-      `/audios/dia_${todayItem.id}.mp3`,
-      `/audios/dia${todayItem.id}.mp3`,
-      `/audios/${todayItem.id}.mp3`
+      `/audios/apresentacao_caminhos_do_coracao.mp3`
     ];
-
-    const audioUrls = getAudioUrls();
 
     if (!inviteAudioRef.current) {
       const audioEl = new Audio();
@@ -141,23 +123,17 @@ export default function App() {
             setIsPlayingInvite(true);
             setIsInviteRealAudio(true);
           }).catch(() => {
-            // Dispara o erro novamente para ir para a próxima tentativa no onerror
             audioEl.dispatchEvent(new Event('error'));
           });
         } else {
-          console.warn("Nenhuma rota de áudio funcionou. Iniciando fallback de voz sintética (TTS)...");
-          runInviteTts(todayItem);
+          console.warn("Nenhuma rota de áudio de apresentação funcionou.");
+          setIsPlayingInvite(false);
         }
       };
     }
 
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-
     setIsInviteRealAudio(true);
     
-    // Iniciar a tentativa de reprodução com a primeira URL da lista
     const firstUrl = audioUrls[0];
     inviteAudioRef.current.src = firstUrl;
     
@@ -171,42 +147,15 @@ export default function App() {
         .catch((err) => {
           playAttemptUrlIndex++;
           if (playAttemptUrlIndex < audioUrls.length) {
-            console.warn(`Erro/Bloqueio ao tocar ${inviteAudioRef.current.src}. Tentando próxima: ${audioUrls[playAttemptUrlIndex]}`);
             inviteAudioRef.current.src = audioUrls[playAttemptUrlIndex];
             playNextAvailable();
           } else {
-            runInviteTts(todayItem);
+            setIsPlayingInvite(false);
           }
         });
     };
 
     playNextAvailable();
-  };
-
-  const runInviteTts = (todayItem: any) => {
-    setIsInviteRealAudio(false);
-    if (!window.speechSynthesis) return;
-
-    window.speechSynthesis.cancel();
-
-    const welcomeText = `Olá! Seja muito bem-vindo ao Caminhos do Coração de hoje. O tema do nosso devocional para este dia é: ${todayItem.title}. ${todayItem.subtitle}. Convido você a clicar no botão abaixo para ler o devocional completo e meditar com a gente.`;
-
-    const utterance = new SpeechSynthesisUtterance(welcomeText);
-    utterance.lang = "pt-BR";
-    utterance.rate = 1.0;
-
-    utterance.onend = () => {
-      setIsPlayingInvite(false);
-      inviteUtteranceRef.current = null;
-    };
-    utterance.onerror = () => {
-      setIsPlayingInvite(false);
-      inviteUtteranceRef.current = null;
-    };
-
-    inviteUtteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-    setIsPlayingInvite(true);
   };
 
 
@@ -614,7 +563,7 @@ export default function App() {
         )}
         {/* Floating Play/Pause toggle for background daily welcome audio */}
         <button
-          onClick={() => toggleInviteAudio(todayDevocional)}
+          onClick={() => toggleInviteAudio()}
           className={`absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors cursor-pointer focus-ring flex items-center justify-center ${
             isPlayingInvite ? "text-primary-orange animate-pulse" : "text-zinc-500 hover:text-white"
           }`}
